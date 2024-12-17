@@ -1,0 +1,4 @@
+Language: Cpp
+BasedOnStyle: Google
+AccessModifierOffset: -2
+ColumnLimit: 100

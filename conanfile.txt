@@ -1,0 +1,11 @@
+[requires]
+eigen/3.4.0
+pybind11/2.11.1
+fmt/10.2.1
+gtest/1.14.0
+gflags/2.2.2
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
