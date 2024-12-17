@@ -30,22 +30,25 @@ pybind11_add_module(norm_constrained_qp_solver
 )
 
 target_link_libraries(norm_constrained_qp_solver PUBLIC
+    Eigen3::Eigen
     pybind11::pybind11
     fmt::fmt
     Boost::headers
     )
     
 # Below lines for installing the pybind module as a python package:
-configure_file(src/bnb_max_consensus_certifier/__init__.py ${CMAKE_CURRENT_BINARY_DIR}/bnb_max_consensus_certifier/__init__.py)
+configure_file(src/norm_constrained_qp_solver/__init__.py ${CMAKE_CURRENT_BINARY_DIR}/norm_constrained_qp_solver/__init__.py)
 configure_file(setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
-install(TARGETS bnb_max_consensus_certifier DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/bnb_max_consensus_certifier")
+install(TARGETS norm_constrained_qp_solver DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/norm_constrained_qp_solver")
 install(CODE "execute_process(COMMAND pip install .)")
 
 add_executable(test_solver
-    src/test_solver.cpp
+    test/test_solver.cpp
     )
 
 target_link_libraries(test_solver PUBLIC
+    Eigen3::Eigen
     Boost::headers
     gflags::gflags
+    fmt::fmt
     )

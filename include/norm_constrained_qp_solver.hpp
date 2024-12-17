@@ -4,9 +4,44 @@
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-#include <boost/math/tools/roots.hpp>
+//#include <boost/math/tools/roots.hpp>
+#include <functional>
+#include <tuple> 
 
 namespace ncs {
+
+namespace internal {
+
+template<typename Scalar>
+std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f, 
+  Scalar a, Scalar b, Scalar eps, size_t max_iterations) {
+ 
+    Scalar c = a;
+    size_t i = 0;
+
+    if (f(a) * f(b) >= 0) { /// Check for opposite sign
+        /// TODO throw, 
+        return std::make_pair(a, i);
+    }
+    while ((b - a) >= eps && i < max_iterations) {
+        i++;
+
+        c = Scalar(.5) * (a + b);
+        
+        Scalar f_c = f(c);
+        Scalar f_a = f(a);
+        if (f_c == Scalar(0)) 
+          return std::make_pair(c, i);
+        else if (f_c * f_a < 0)
+            b = c;
+        else
+            a = c;
+    }
+    return std::make_pair(c, i);
+
+}
+
+}
 
 /// Solves the following non-convex optimization problem to global optimality: 
 ///   min      1/2 x^T A x + g^T x
@@ -25,6 +60,7 @@ namespace ncs {
 template<typename Scalar, int Dim>
   static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &A,
         const Eigen::Vector<Scalar, Dim> &g) {
+    size_t d = A.cols(); /// TODO assert
     using Mat = Eigen::Matrix<Scalar, Dim, Dim>;
     using Vec = Eigen::Vector<Scalar, Dim>;
 
@@ -42,8 +78,7 @@ template<typename Scalar, int Dim>
     const auto characteristic_poly = [&](Scalar x) {
       Vec denom = (D.array() - x);
       Scalar f_x = (a_sq.array() / denom.array().square()).sum() - Scalar(1.);
-      Scalar f_prime = (2. * a_sq.array() / denom.array().pow(3)).sum();
-      return std::make_pair(f_x, f_prime);
+      return f_x;
     };
 
     /// Find the index of the max element
@@ -71,8 +106,7 @@ template<typename Scalar, int Dim>
       double x0 = b_max + std::max(k_eps, abs_a_max - k_eps);
       /// And as the right border, we can easily show this:
       const auto right_root_border = a.norm() + b_max + k_eps;
-      /// Now use boost root finding routine: Note that this is a routine
-      /// that falls back to bisection in the given interval, bisection is guaranteed to converge to a
+      /// Now use boost root finding routine: Note that bisection is guaranteed to converge to a
       /// root. Analytically, our interval where the root should lie can be shown to contain the root
       /// (and only one root). Therefore, this method is guaranteed to converge to the root.
       /*
@@ -80,12 +114,10 @@ template<typename Scalar, int Dim>
           fmt::streamed(a.transpose()), fmt::streamed(D.transpose()), x0,
               characteristic_poly(x0), right_root_border, characteristic_poly(right_root_border));
       */
-      int num_digits = 40;  
-      /// Newton commonly requires only 3-4 iterations to reach 5e-16 absolute accuracy to the root
-      boost::uintmax_t num_iterations_performed =
-          20;  
-      const auto largest_root = boost::math::tools::newton_raphson_iterate(
-          characteristic_poly, x0, x0, right_root_border, num_digits, num_iterations_performed);
+      const auto [largest_root, required_iterations] = internal::bisect<Scalar>(characteristic_poly, x0, right_root_border, 
+          1e-10, 20);
+      /*const auto largest_root = boost::math::tools::newton_raphson_iterate(
+          characteristic_poly, x0, x0, right_root_border, num_digits, num_iterations_performed);*/
       /*
       fmt::print("Root-finding took {} iterations and found {} where the function is: {}\n",
       num_iterations_performed, largest_root, characteristic_poly(largest_root));
@@ -99,7 +131,7 @@ template<typename Scalar, int Dim>
     
     /// TODO
     if (n.norm() < 1e-6) {  /// We can't even normalize, the numerical error is arbitrarily large
-      n = Vec::Ones();
+      n = Vec::Ones(d);
     }
 
     //n.normalize();
