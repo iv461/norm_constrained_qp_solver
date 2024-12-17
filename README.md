@@ -9,7 +9,7 @@ This is a tiny and fast solver for solving the non-convex optimization problem w
 \begin{equation}
 	\begin{aligned}
 		\min_{x \in \mathbb{R}^d} \quad & \frac{1}{2} \mathbf{x}^T \mathbf{A} \mathbf{x} + \mathbf{g}^T \mathbf{x}\\
-		\text{subject to} \quad  &|| \mathbf{x} || \leq 1\\
+		\text{subject to} \quad  & \lVert \mathbf{x} \rVert \leq 1\\
 	\end{aligned}
 \end{equation}
 ```

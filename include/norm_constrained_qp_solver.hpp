@@ -8,21 +8,20 @@
 
 namespace ncs {
 
- /// Solve non-convex optimization problem to global optimality: 
-  ///   min      1/2 x^T A x + g^T x
-  /// x \in R^d
-  /// 
-  /// subject to  ||x|| = 1
-  ///
-  /// The matrix A should be symmetric (but it does not need to be positive definite). 
-  /// The algorithm is an active-set solver based on eigen-decomposition with subsequent root-finding. 
+/// Solves the following non-convex optimization problem to global optimality: 
+///   min      1/2 x^T A x + g^T x
+/// x \in R^d
+/// 
+/// subject to  ||x|| = 1
+///
+/// The matrix A should be symmetric (but it does not need to be positive definite). 
+/// The algorithm is an active-set solver based on eigen-decomposition with subsequent root-finding. 
 
-  /// We implement the first method from [1] that uses explicit root-finding which was evaluated in the paper to be
-  /// the fastest and most accurate.
-  ///
-  /// References:
-  /// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
-
+/// We implement the first method from [1] that uses explicit root-finding which was evaluated in the paper to be
+/// the fastest and most accurate.
+///
+/// References:
+/// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
 template<typename Scalar, int Dim>
   static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &A,
         const Eigen::Vector<Scalar, Dim> &g) {
