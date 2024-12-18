@@ -1,5 +1,3 @@
-
-
 #pragma once 
 
 #include <Eigen/Core>
@@ -7,6 +5,9 @@
 //#include <boost/math/tools/roots.hpp>
 #include <functional>
 #include <tuple> 
+#include <fmt/core.h>
+#include <cassert> 
+#include <exception>
 
 namespace ncs {
 
@@ -60,10 +61,18 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f,
 template<typename Scalar, int Dim>
   static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &A,
         const Eigen::Vector<Scalar, Dim> &g) {
-    size_t d = A.cols(); /// TODO assert
     using Mat = Eigen::Matrix<Scalar, Dim, Dim>;
     using Vec = Eigen::Vector<Scalar, Dim>;
 
+    auto d = A.cols();
+
+    /// Check the dimensions if we are using dynamic-sized matrices
+    if constexpr(Dim == Eigen::Dynamic) {
+      if(A.cols() != A.rows()) 
+        throw std::invalid_argument(fmt::format("The matrix A must be symmetric, but instead it has {} rows and {} columns", A.rows(), A.cols()));
+      if(g.size() != A.rows())
+        throw std::invalid_argument(fmt::format("The vector g must have the same dimension as the matrix A, but A is of dimension {} while g is of dimension {}", A.rows(), g.size()));
+    }
 
     /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices
     Eigen::SelfAdjointEigenSolver<Mat> es;
@@ -115,13 +124,12 @@ template<typename Scalar, int Dim>
               characteristic_poly(x0), right_root_border, characteristic_poly(right_root_border));
       */
       const auto [largest_root, required_iterations] = internal::bisect<Scalar>(characteristic_poly, x0, right_root_border, 
-          1e-10, 20);
-      /*const auto largest_root = boost::math::tools::newton_raphson_iterate(
-          characteristic_poly, x0, x0, right_root_border, num_digits, num_iterations_performed);*/
-      /*
+          1e-15, 50);
+      
+      
       fmt::print("Root-finding took {} iterations and found {} where the function is: {}\n",
-      num_iterations_performed, largest_root, characteristic_poly(largest_root));
-      */
+          required_iterations, largest_root, characteristic_poly(largest_root));
+      
       l_hat = largest_root;
       // fmt::print("Computing D: {}, l: {}\n", fmt::streamed(D), l_hat);
     }
@@ -129,11 +137,6 @@ template<typename Scalar, int Dim>
     /// Q * (L - l I)^-1 * a <=> Q * (a / (L - l)), i.e element-wise vector division.
     Vec n = Q * (a.array() / (D.array() - l_hat)).matrix();
     
-    /// TODO
-    if (n.norm() < 1e-6) {  /// We can't even normalize, the numerical error is arbitrarily large
-      n = Vec::Ones(d);
-    }
-
     //n.normalize();
 
     return n;
