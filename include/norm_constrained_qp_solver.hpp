@@ -6,6 +6,7 @@
 #include <functional>
 #include <tuple> 
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 #include <cassert> 
 #include <exception>
 
@@ -42,10 +43,25 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f,
 
 }
 
+template<typename Scalar, int Dim>
+void check_data_matrices(const Eigen::Matrix<Scalar, Dim, Dim> &C,
+        const Eigen::Vector<Scalar, Dim> &b) {
+    /// Check the dimensions if we are using dynamic-sized matrices
+    if constexpr(Dim == Eigen::Dynamic) {
+      if(C.cols() != C.rows()) 
+        throw std::invalid_argument(fmt::format("The matrix C must be symmetric, but instead it has {} rows and {} columns", C.rows(), C.cols()));
+      if(b.size() != C.rows())
+        throw std::invalid_argument(fmt::format("The vector b must have the same dimension as the matrix C, but C is of dimension {} while b is of dimension {}", C.rows(), b.size()));
+    }
+    if(!C.array().isFinite().all())
+        throw std::invalid_argument(fmt::format("A must be finite, i.e. not contain NaNs or Infinite, but instead C is: {}", fmt::streamed(C)));
+    if(!b.array().isFinite().all())
+        throw std::invalid_argument(fmt::format("b must be finite, i.e. not contain NaNs or Infinite, but instead b is: {}", fmt::streamed(b)));
+}
 }
 
 /// Solves the following non-convex optimization problem to global optimality: 
-///   min       1/2 x^T A x - g^T x
+///   min       1/2 x^T C x - b^T x
 /// x \in R^d
 /// 
 /// subject to  ||x|| = s
@@ -60,49 +76,45 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f,
 /// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
 
 template<typename Scalar, int Dim>
-  static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &A,
-        const Eigen::Vector<Scalar, Dim> &g, 
-        XScalar s) {
+  static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &C,
+        const Eigen::Vector<Scalar, Dim> &b, 
+        Scalar s) {
     using Mat = Eigen::Matrix<Scalar, Dim, Dim>;
     using Vec = Eigen::Vector<Scalar, Dim>;
 
-    auto d = A.cols();
-
-    /// Check the dimensions if we are using dynamic-sized matrices
-    if constexpr(Dim == Eigen::Dynamic) {
-      if(A.cols() != A.rows()) 
-        throw std::invalid_argument(fmt::format("The matrix A must be symmetric, but instead it has {} rows and {} columns", A.rows(), A.cols()));
-      if(g.size() != A.rows())
-        throw std::invalid_argument(fmt::format("The vector g must have the same dimension as the matrix A, but A is of dimension {} while g is of dimension {}", A.rows(), g.size()));
-    }
+    auto dims = C.cols();
+    internal::check_data_matrices(C, b);
 
     /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices
-    Eigen::SelfAdjointEigenSolver<Mat> es;
-    es.compute(A);
+    Eigen::SelfAdjointEigenSolver<Mat> es(C);
     Mat Q = es.eigenvectors();
     Vec D = es.eigenvalues();
-    Vec a = Q.transpose() * g;
+    Vec d = Q.transpose() * b;
 
-    Vec a_sq = a.array().square();
+    Vec d_sq = d.array().square();
 
+    /// Case analysis whether the optimal Lagrange multiplier can be one of the eigenvalues: It can only be optimal if the any d_i is zero
+    if((d.array() == 0).any()) {
+
+    }
     /// The rational function of which we need to find the roots. (named secular equation in [1])
     const auto characteristic_poly = [&](Scalar x) {
       Vec denom = (D.array() - x);
-      Scalar f_x = (a_sq.array() / denom.array().square()).sum() - s*s;
+      Scalar f_x = (d_sq.array() / denom.array().square()).sum() - s*s;
       return f_x;
     };
 
     /// Find the index of the maximum eigenvalue
     size_t max_b_i = 0;
-    for (int i = 1; i < d; i++)
+    for (int i = 1; i < dims; i++)
       if (D[i] > D[max_b_i]) max_b_i = i;
 
     auto b_max = D[max_b_i];
-    auto abs_a_max = std::abs(a[max_b_i]);
+    auto abs_d_max = std::abs(d[max_b_i]);
     Scalar l_hat{0};  /// The optimal root
 
     const double a_min_eps = 3.5e-15;  /// Expect 48 bit accuracy
-    if (abs_a_max < a_min_eps) {
+    if (abs_d_max < a_min_eps) {
       /// In this case, the solution is close to one of the eigenvectors, maybe handle this case. Not
       /// sure if it matters numerically.
       l_hat = b_max + a_min_eps;
@@ -114,9 +126,9 @@ template<typename Scalar, int Dim>
       const double k_eps =
           1.43e-14;  /// 2^-46 rounded up, has to be larger  than a_min_eps such that the interval of
                     /// the root has a width. We aim for 2 ULP width.
-      double x0 = b_max + std::max(k_eps, abs_a_max - k_eps);
+      double x0 = b_max + std::max(k_eps, abs_d_max - k_eps);
       /// And as the right border, we can easily show this:
-      const auto right_root_border = a.norm() + b_max + k_eps;
+      const auto right_root_border = d.norm() + b_max + k_eps;
       /// Now use boost root finding routine: Note that bisection is guaranteed to converge to a
       /// root. Analytically, our interval where the root should lie can be shown to contain the root
       /// (and only one root). Therefore, this method is guaranteed to converge to the root.
@@ -137,10 +149,7 @@ template<typename Scalar, int Dim>
     }
     /// This expression is the same as Q (L - l I)^-1 Q^T g.
     /// Q * (L - l I)^-1 * a <=> Q * (a / (L - l)), i.e element-wise vector division.
-    Vec n = Q * (a.array() / (D.array() - l_hat)).matrix();
-    
-    //n.normalize();
-
-    return n;
+    Vec x = Q * (d.array() / (D.array() - l_hat)).matrix();
+    return x;
   }
 }
