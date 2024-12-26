@@ -45,22 +45,24 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f,
 }
 
 /// Solves the following non-convex optimization problem to global optimality: 
-///   min      1/2 x^T A x + g^T x
+///   min       1/2 x^T A x - g^T x
 /// x \in R^d
 /// 
-/// subject to  ||x|| = 1
+/// subject to  ||x|| = s
 ///
 /// The matrix A should be symmetric (but it does not need to be positive definite). 
-/// The algorithm is an active-set solver based on eigen-decomposition with subsequent root-finding. 
+/// The algorithm is based on eigen-decomposition with subsequent root-finding. 
 
 /// We implement the first method from [1] that uses explicit root-finding which was evaluated in the paper to be
-/// the fastest and most accurate.
+/// the fastest and most accurate method. In this paper, the discussion about this problem starts at Eq. (10).
 ///
 /// References:
 /// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
+
 template<typename Scalar, int Dim>
   static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &A,
-        const Eigen::Vector<Scalar, Dim> &g) {
+        const Eigen::Vector<Scalar, Dim> &g, 
+        XScalar s) {
     using Mat = Eigen::Matrix<Scalar, Dim, Dim>;
     using Vec = Eigen::Vector<Scalar, Dim>;
 
@@ -86,13 +88,13 @@ template<typename Scalar, int Dim>
     /// The rational function of which we need to find the roots. (named secular equation in [1])
     const auto characteristic_poly = [&](Scalar x) {
       Vec denom = (D.array() - x);
-      Scalar f_x = (a_sq.array() / denom.array().square()).sum() - Scalar(1.);
+      Scalar f_x = (a_sq.array() / denom.array().square()).sum() - s*s;
       return f_x;
     };
 
-    /// Find the index of the max element
+    /// Find the index of the maximum eigenvalue
     size_t max_b_i = 0;
-    for (int i = 1; i < 3; i++)
+    for (int i = 1; i < d; i++)
       if (D[i] > D[max_b_i]) max_b_i = i;
 
     auto b_max = D[max_b_i];
