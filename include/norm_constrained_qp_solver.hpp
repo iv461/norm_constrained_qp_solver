@@ -2,7 +2,6 @@
 
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-//#include <boost/math/tools/roots.hpp>
 #include <functional>
 #include <tuple> 
 #include <fmt/core.h>
@@ -46,12 +45,15 @@ template<typename Scalar, int Dim>
 void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
         const Eigen::Vector<Scalar, Dim> &b, 
         Scalar s) {
+    static_assert(Dim > 1 || Dim == Eigen::Dynamic, "The matrix C must be at least 2x2");
     /// Check the dimensions if we are using dynamic-sized matrices
     if constexpr(Dim == Eigen::Dynamic) {
       if(C.cols() != C.rows()) 
         throw std::invalid_argument(fmt::format("The matrix C must be symmetric, but instead it has {} rows and {} columns", C.rows(), C.cols()));
       if(b.size() != C.rows())
         throw std::invalid_argument(fmt::format("The vector b must have the same dimension as the matrix C, but C is of dimension {} while b is of dimension {}", C.rows(), b.size()));
+      if(C.cols() > 1)
+        throw std::invalid_argument(fmt::format("The matrix C must be at least 2x2, but instead it has {} rows and {} columns", C.rows(), C.cols()));
     }
     if(!C.array().isFinite().all())
         throw std::invalid_argument(fmt::format("C must be finite, i.e. not contain NaN or Infinite values, but instead C is: {}", fmt::streamed(C)));
@@ -140,7 +142,7 @@ template<typename Scalar, int Dim>
     /// Analytically, we can show that this is always positive
     /// We use the starting value as the left border of the interval in
     /// in which the root may lie (the 'bracket' as it's apparently called)
-    const Scalar k_eps = a_min_eps * 32;  /// 2^-46 rounded up, has to be larger  than a_min_eps such that the interval of
+    const Scalar k_eps = a_min_eps * 32;  /// has to be larger  than a_min_eps such that the interval of
                   /// the root has a width. We aim for 5 ULP width.
 
     const Scalar root_interval_left_border = (s * max_eigenvalue + std::max(k_eps, abs_d_max - k_eps)) / s;
