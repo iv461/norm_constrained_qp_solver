@@ -21,8 +21,9 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f,
     size_t i = 0;
 
     if (f(a) * f(b) >= 0) { /// Check for opposite sign
-        throw std::invalid_argument(fmt::format("The function must have opposite sign, bug f(a) is {} and f(b) is {}", f(a), f(b)));
+        throw std::invalid_argument(fmt::format("The function must have opposite sign, but f({}) is {} and f({}) is {}", a, f(a), b, f(b)));
     }
+
     while ((b - a) >= eps && i < max_iterations) {
         i++;
 
@@ -119,54 +120,43 @@ template<typename Scalar, int Dim>
     /// So we continue with root-finding.
   
     Vec d_sq = d.array().square();
-    const auto secular_eq = [&](Scalar x) {
-      Vec denom = (D.array() - x);  
-      Scalar f_x = 0;
-      for(int i = 0; i < dims; i++)
-        if(d_sq[i] != 0) /// If d_i is zero, the root may be exactly one of the eigenvalues. In other words, since the pole disappears, there may be a root. 
-        /// In this case, we prevent division by zero by ignoring this term that is zero anyways (by L'Hospital' rule). (The bracketing of the root below ensures that denom is non-zero if d_i is non-zero and we do not evaluate this function at the poles)
-          f_x += d_sq[i] / (denom[i] * denom[i]);
-      f_x -= s*s;
-      return f_x;
-    };
+
+    const auto secular_eq = [&](Scalar x) { return (d_sq.array() / (D.array() - x).square()).sum() - s * s; };
 
     /// Now bracket the root. First, find out which is the right-most pole, since the right-most root comes after the last pole. 
-    /// We have to get as close as possible to the pole for maximum accuracy.
-    /// If d_i^2 is zero, then this pole vanished (checking for the squared value is important since 1 ULP squared is zero)
-
-    const Scalar ULP = std::numeric_limits<Scalar>::epsilon();
-
-    /// The condition (d_i / D[i] - x)^2 > s*s must hold so that a root is possible after the pole D[i]. Since the denominator (D[i] - x)^2 is no less than 1 ULP,
-    /// the nominator must be at least ULP * s*s * times some margin (32 in this case) so that the condition can be true.
-    const Scalar k_eps = ULP * 32 * s*s;
-    
+    /// If and only if d_i^2 is exactly zero, then this pole vanished mathematically (using real numbers). Numerically, it also vanishes if it's width is less than 1 ULP, we well check this later.
     size_t i_last_pole = 0; 
     for (int i = 1; i < dims; i++)
-      if (d_sq[i] > k_eps) i_last_pole = i;
-
-    fmt::println("i_last_pole: {}", i_last_pole);
+      if (d_sq[i] != 0) i_last_pole = i;
 
     auto last_pole = D[i_last_pole];
     auto abs_d_max = std::abs(d[i_last_pole]);
-  
-    /// Now compute the interval
-    const Scalar root_interval_left_border = last_pole + std::max(k_eps, abs_d_max - k_eps) / s;
-    /// And as the right border, we can easily show this:
-    const Scalar root_interval_right_border = last_pole + d.norm() / s + (k_eps * 32);  // Expect at leat 5 bit width
 
-    fmt::println("root bracket: [{}, {}]", root_interval_left_border, root_interval_right_border);
+    /// Now compute the interval. In the following, we locate the root to maximum machine precision.
+    Scalar next_float_after_pole = std::nextafter(last_pole, last_pole + Scalar(1));
+    Scalar rightmost_root = 0;
+    /// At the pole, the secular equation is mathematically always undefined (division by zero) and numerically always infinite.
+    /// If at the next float to the right the secular equation is already negative, we know that the root is located between the pole and the next float, i.e. we reached machimum machine precision and cannot locate it more accurately.
+    if(secular_eq(next_float_after_pole) <= 0) {
+      rightmost_root = next_float_after_pole;
+    } else {
+      const Scalar root_interval_left_border = next_float_after_pole;      
+      const Scalar root_interval_right_border = next_float_after_pole + d.norm() / s;
+    
+      fmt::println("root bracket: [{}, {}]", root_interval_left_border, root_interval_right_border);
 
-    /// Now use boost root finding routine: Note that bisection is guaranteed to converge to a
-    /// root as long as the interval is correct.
-    /// The rigtht-most root is the optimal Lagrange multiplier
-    const auto [lagrange_multiplier, required_iterations] = bisect<Scalar>(secular_eq, root_interval_left_border,
-         root_interval_right_border, 
-        ULP, 50);
+      /// Now use bisection that is guaranteed to converge to a root as long as the interval is correct.
+      const Scalar ULP = std::numeric_limits<Scalar>::epsilon();
+      const auto [root, required_iterations] = bisect<Scalar>(secular_eq, root_interval_left_border,
+          root_interval_right_border, 
+          ULP, 50);
+      rightmost_root = root;
+      fmt::print("Root-finding took {} iterations and found the Lagrange multiplier {} where the function is: {}\n",
+          required_iterations, root, secular_eq(root));
 
-    fmt::print("Root-finding took {} iterations and found the Lagrange multiplier {} where the function is: {}\n",
-        required_iterations, lagrange_multiplier, secular_eq(lagrange_multiplier));
+    }
 
-    Vec denom = (D.array() - lagrange_multiplier);
+    Vec denom = (D.array() - rightmost_root);
     for(int i = 0; i < dims; i++)
       if(denom[i] != 0) /// Prevent division by zero 
         x[i] = d[i] / denom[i];
