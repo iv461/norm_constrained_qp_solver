@@ -9,7 +9,7 @@ This is a tiny and fast solver for solving the non-convex optimization problem w
 \begin{equation}
 	\begin{aligned}
 		\min_{x \in \mathbb{R}^d} \quad & \frac{1}{2} \mathbf{x}^T \mathbf{A} \mathbf{x} - \mathbf{g}^T \mathbf{x}\\
-		\text{subject to} \quad  & \lVert \mathbf{x} \rVert \leq s\\
+		\text{subject to} \quad  & \lVert \mathbf{x} \rVert = s\\
 	\end{aligned}
 \end{equation}
 ```
@@ -18,7 +18,6 @@ where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite)
 
 This problem is also known as the Trust-Region Subproblem (TRS).
 The solver is based on eigen-decomposition with subsequent root-finding.
-
 The solver is also fast for small fixed-sized matrices.
 
 # Dependencies 
@@ -29,17 +28,14 @@ The solver is also fast for small fixed-sized matrices.
 # Install 
 
 Install the conan package: 
-TODO 
 
+```sh
+conan install norm_constrained_qp_solver
+```
 
 # Build from source 
 
 [Build from source](doc/build_from_source.md)
-
-# Use trough python
-
-The solver can be called from Python: 
-
 
 # License 
 

@@ -27,6 +27,33 @@ Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
 }
 
 
+TEST(NCSSolverTests, ArgumentChecking) {
+    /// Test where b is the zero-vector. In this case the optimization problem simplifies to one without the linear term.
+    /// This problem has the optimal solution of the eigenvector associated with the smallest eigenvalue.
+
+    Vec eigs{Vec::Zero()};
+    eigs[0] = 1.8;
+    eigs[1] = 1.7;
+    eigs[2] = -0.3;
+
+    Mat D = Mat::Random(3, 3);
+    Eigen::FullPivHouseholderQR<Mat> qr(D);
+    Mat Q = qr.matrixQ();
+    Mat C = -(Q * eigs.asDiagonal() * Q.transpose());
+
+    Vec b = Vec::Zero();
+    
+    Scalar s = 1.;
+    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    
+    Vec smallest_eigenvector = Q.col(2);
+    
+    auto norm_diff = (smallest_eigenvector - x_hat).norm();
+    fmt::println("norm_diff: {}", norm_diff);
+    EXPECT_NEAR(norm_diff, 0, 1e-3);
+}
+
+
 TEST(NCSSolverTests, Smoke) {
 
     Mat D = Mat::Random(3, 3);
@@ -124,7 +151,7 @@ TEST(NCSSolverTests, Zerob) {
     auto x_hat = solve_norm_constrained_qp(C, b, s);
     
     Vec smallest_eigenvector = Q.col(2);
-    
+
     auto norm_diff = (smallest_eigenvector - x_hat).norm();
     fmt::println("norm_diff: {}", norm_diff);
     EXPECT_NEAR(norm_diff, 0, 1e-3);

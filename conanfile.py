@@ -1,4 +1,5 @@
 from conan import ConanFile
+from conan.tools.files import copy
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 
 
@@ -15,15 +16,9 @@ class NCSReceipt(ConanFile):
 
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
 
     # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "src/*", "include/*"
-
-    def config_options(self):
-        if self.settings.os == "Windows":
-            del self.options.fPIC
+    exports_sources = "CMakeLists.txt", "src/*", "include/*", "test/*"
 
     def layout(self):
         cmake_layout(self)
@@ -31,10 +26,17 @@ class NCSReceipt(ConanFile):
     @property
     def _min_cppstd(self):
         return "17"
+
+    def package_id(self):
+        # This should be set so that the package id hash does not change based on different build settings, see https://docs.conan.io/2/tutorial/creating_packages/configure_options_settings.html#header-only-libraries
+        self.info.clear()
         
     def requirements(self):
         self.requires("eigen/3.4.0", transitive_headers=True)
-
+        self.requires("pybind11/2.11.1", transitive_headers=True)
+        self.requires("fmt/10.2.1", transitive_headers=True)
+        self.test_requires("gtest/1.14.0")        
+    
     def generate(self):
         deps = CMakeDeps(self)
         deps.generate()
@@ -49,6 +51,4 @@ class NCSReceipt(ConanFile):
     def package(self):
         cmake = CMake(self)
         cmake.install()
-
-    def package_info(self):
-        self.cpp_info.libs = ["hello"]
+        copy(self, "*.hpp", self.source_folder, self.package_folder)
