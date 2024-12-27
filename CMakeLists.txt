@@ -22,7 +22,6 @@ endif()
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(fmt REQUIRED)
-find_package(Boost REQUIRED)
 find_package(gflags REQUIRED)
 
 pybind11_add_module(norm_constrained_qp_solver
@@ -33,7 +32,6 @@ target_link_libraries(norm_constrained_qp_solver PUBLIC
     Eigen3::Eigen
     pybind11::pybind11
     fmt::fmt
-    Boost::headers
     )
     
 # Below lines for installing the pybind module as a python package:
@@ -48,7 +46,6 @@ add_executable(test_solver
 
 target_link_libraries(test_solver PUBLIC
     Eigen3::Eigen
-    Boost::headers
     gflags::gflags
     fmt::fmt
     )
