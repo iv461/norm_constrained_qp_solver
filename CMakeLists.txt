@@ -40,12 +40,7 @@ configure_file(setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 install(TARGETS norm_constrained_qp_solver DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/norm_constrained_qp_solver")
 install(CODE "execute_process(COMMAND pip install .)")
 
-add_executable(test_solver
-    test/test_solver.cpp
-    )
 
-target_link_libraries(test_solver PUBLIC
-    Eigen3::Eigen
-    gflags::gflags
-    fmt::fmt
-    )
+# Add the test directory
+enable_testing()
+add_subdirectory(test)

@@ -12,7 +12,7 @@
 
 namespace ncs {
 
-namespace internal {
+namespace {
 
 template<typename Scalar>
 std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f, 
@@ -61,8 +61,8 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
         throw std::invalid_argument(fmt::format("The matrix C must be symmetric"));
     if(!(s > 0))
         throw std::invalid_argument(fmt::format("s must be a positive and non-zero, but it is instead {}", s));
-    if((s < std::numeric_limits<Scalar>::epsilon() * 2e5))
-        fmt::println("WARNING: s is very small, an accurate result is not guaranteed {}");
+    if((s < std::numeric_limits<Scalar>::epsilon() * 32))
+        fmt::println("WARNING: s is very small, an accurate result is not guaranteed {}", s);
 }
 }
 
@@ -80,7 +80,6 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
 ///
 /// References:
 /// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
-
 template<typename Scalar, int Dim>
   static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(const Eigen::Matrix<Scalar, Dim, Dim> &C,
         const Eigen::Vector<Scalar, Dim> &b, 
@@ -89,7 +88,7 @@ template<typename Scalar, int Dim>
     using Vec = Eigen::Vector<Scalar, Dim>;
 
     auto dims = C.cols();
-    internal::check_arguments(C, b, s);
+    check_arguments(C, b, s);
 
     /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices
     Eigen::SelfAdjointEigenSolver<Mat> es(C);
@@ -117,7 +116,7 @@ template<typename Scalar, int Dim>
     /// So we continue with root-finding.
     
     Vec d_sq = d.array().square();
-    const auto characteristic_poly = [&](Scalar x) {
+    const auto secular_eq = [&](Scalar x) {
       Vec denom = (D.array() - x);
       //Scalar f_x = (d_sq.array() / denom.array().square()).sum() - s*s;
       Scalar f_x = 0;
@@ -155,15 +154,15 @@ template<typename Scalar, int Dim>
     /*
     fmt::print("x0: {}, f(x0): {}, right_root_border: {}, f(right_root_border): {}\n",
         fmt::streamed(a.transpose()), fmt::streamed(D.transpose()), x0,
-            characteristic_poly(x0), right_root_border, characteristic_poly(right_root_border));
+            secular_eq(x0), right_root_border, secular_eq(right_root_border));
     */
-    const auto [largest_root, required_iterations] = internal::bisect<Scalar>(characteristic_poly, root_interval_left_border,
+    const auto [largest_root, required_iterations] = bisect<Scalar>(secular_eq, root_interval_left_border,
          root_interval_right_border, 
         ULP, 50);
     
     
     fmt::print("Root-finding took {} iterations and found {} where the function is: {}\n",
-        required_iterations, largest_root, characteristic_poly(largest_root));
+        required_iterations, largest_root, secular_eq(largest_root));
     
     l_hat = largest_root;
     // fmt::print("Computing D: {}, l: {}\n", fmt::streamed(D), l_hat);
