@@ -63,8 +63,9 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
         throw std::invalid_argument(fmt::format("The matrix C must be symmetric"));
     if(!(s > 0))
         throw std::invalid_argument(fmt::format("s must be a positive and non-zero, but it is instead {}", s));
-    if((s < std::numeric_limits<Scalar>::epsilon() * 32))
-        fmt::println("WARNING: s is very small, an accurate result is not guaranteed {}", s);
+    const auto s_min = std::numeric_limits<Scalar>::epsilon() * 32;
+    if(s < s_min)
+        throw std::invalid_argument(fmt::format("s is very small, an accurate result is not guaranteed, it must be above {}, but instead it is: {}", s_min, s));
 }
 }
 
@@ -169,13 +170,12 @@ template<typename Scalar, int Dim>
     l_hat = largest_root;
     // fmt::print("Computing D: {}, l: {}\n", fmt::streamed(D), l_hat);
 
-    
     Vec denom = (D.array() - l_hat);
     for(int i = 0; i < dims; i++)
       if(denom[i] != 0) /// Prevent division by zero 
         x[i] = d[i] / denom[i];
       else
-        x[i] = 0;
+        x[i] = 0;  /// as required by the KKT conditions, Eq. (13) in [1]
 
     return x;
   }

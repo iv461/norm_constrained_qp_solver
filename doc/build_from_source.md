@@ -7,45 +7,38 @@ Tested on:
 
 Thanks to conan, this package is not dependent on the system package manager on Linux, therefore it probabably works on other Linux distros too, just give it a try !
 
-Windows: Do not use the MS-Store Python-version, as this may lead to the conan-command not being installed correctly, instead install Python from python.org
+A note to Windows Users: Do not use the MS-Store Python-version, as this may lead to the conan-command not being installed correctly, instead install Python from [python.org](https://www.python.org/downloads/)
 
 
-Install conan2: 
+1. Install conan2: 
 ```sh
 pip install conan~=2.0
 ```
 
-Do this once:
+2. Install a compiler (tested with GCC on Ubuntu and MSVC 17 on Windows)
+
+3. Do this once:
 
 ```sh
 conan profile detect
 ```
 
+## Build 
 
-Compile and install the pip package with CMake: 
-
-### Linux 
+### Linux and Windows
 
 ```sh
-mkdir Release
-conan install . --build=missing --output Release
-cd Release
-cmake .. -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-cmake --build . --target install
+conan build .
 ```
 
-### Windows
-- Install newest Visual Studion Compiler.
+## Run unit-tests
 
+### Windows 
 ```sh
-mkdir Release
-conan install . --build=missing --output Release
-cd Release
-cmake .. -G "Visual Studio 17 2022" -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake"
-cmake --build . --config Release --target install
+.\build\test\Release\tests.exe
 ```
 
-
+### Linux
 ```sh
-conan create .
+.\build\test\tests
 ```

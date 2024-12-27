@@ -11,9 +11,120 @@ using Scalar = double;
 using Mat = Eigen::Matrix3<Scalar>;
 using Vec = Eigen::Vector3<Scalar>;
 
-/*int main() {
-    return 0;
-}*/
+// Test suite for argument validation
+class CheckArgumentsTest : public ::testing::Test {
+protected:
+    // Helper function to create a symmetric matrix
+    Eigen::MatrixXd createSymmetricMatrix(int size, Scalar fillValue = 1.0) {
+        Eigen::MatrixXd mat = Eigen::MatrixXd::Constant(size, size, fillValue);
+        return 0.5 * (mat + mat.transpose()); // Make symmetric
+    }
+};
+
+// Positive test: Valid arguments
+TEST_F(CheckArgumentsTest, ValidArguments) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3, 2.0); // 3x3 symmetric matrix
+    Eigen::VectorXd b(3);
+    b << 1.0, 2.0, 3.0; // Matching size
+    Scalar s = 1.0; // Positive scalar
+
+    // Should not throw
+    EXPECT_NO_THROW(solve_norm_constrained_qp(C, b, s));
+}
+
+// Negative test: Non-square matrix C
+TEST_F(CheckArgumentsTest, NonSquareMatrixC) {
+    Eigen::MatrixXd C(3, 2); // Non-square matrix
+    C.setRandom();
+    Eigen::VectorXd b(3); // Vector size doesn't matter here
+    b.setRandom();
+    Scalar s = 1.0;
+
+    // Expect an invalid_argument exception
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Negative test: Mismatched dimensions between C and b
+TEST_F(CheckArgumentsTest, DimensionMismatch) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3, 2.0); // 3x3 symmetric matrix
+    Eigen::VectorXd b(2); // Mismatched size
+    b.setRandom();
+    Scalar s = 1.0;
+
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Negative test: C not symmetric
+TEST_F(CheckArgumentsTest, NonSymmetricMatrixC) {
+    Eigen::MatrixXd C = Eigen::MatrixXd::Random(3, 3); // Random non-symmetric matrix
+    Eigen::VectorXd b(3);
+    b.setRandom();
+    Scalar s = 1.0;
+
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Negative test: C contains NaN values
+TEST_F(CheckArgumentsTest, NaNInMatrixC) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3);
+    C(1, 1) = std::numeric_limits<Scalar>::quiet_NaN(); // Introduce NaN
+    Eigen::VectorXd b(3);
+    b.setRandom();
+    Scalar s = 1.0;
+
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Negative test: b contains NaN values
+TEST_F(CheckArgumentsTest, NaNInVectorB) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3);
+    Eigen::VectorXd b(3);
+    b << 1.0, std::numeric_limits<Scalar>::quiet_NaN(), 3.0; // Introduce NaN
+    Scalar s = 1.0;
+
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Negative test: Non-positive scalar s
+TEST_F(CheckArgumentsTest, NonPositiveScalar) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3);
+    Eigen::VectorXd b(3);
+    b.setRandom();
+    Scalar s = -1.0; // Negative scalar
+
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
+
+// Edge case: s is very small
+TEST_F(CheckArgumentsTest, VerySmallScalarWarning) {
+    Eigen::MatrixXd C = createSymmetricMatrix(3);
+    Eigen::VectorXd b(3);
+    b.setRandom();
+    Scalar s = std::numeric_limits<Scalar>::epsilon() * 32; // Very small but valid scalar
+    EXPECT_NO_THROW(solve_norm_constrained_qp(C, b, s));
+}
+
+// Negative test: Matrix C smaller than 2x2
+TEST_F(CheckArgumentsTest, MatrixTooSmall) {
+    Eigen::MatrixXd C(1, 1); // 1x1 matrix
+    Eigen::VectorXd b(1);
+    Scalar s = 1.0;
+    EXPECT_THROW({
+        solve_norm_constrained_qp(C, b, s);
+    }, std::invalid_argument);
+}
 
 Mat createRandomMatrixC(const Vec &eigenvalues) {
     Mat D = Mat::Random(3, 3);
@@ -92,9 +203,6 @@ TEST(NCSSolverTests, Smoke) {
 }
 
 TEST(NCSSolverTests, OrthogonalbSmoke) {
-
-
-
     Vec eigs{Vec::Zero()};
     eigs[1] = 1.8;
     eigs[0] = 1.7;
@@ -156,6 +264,26 @@ TEST(NCSSolverTests, Zerob) {
     fmt::println("norm_diff: {}", norm_diff);
     EXPECT_NEAR(norm_diff, 0, 1e-3);
 }
+
+TEST(NCSSolverTests, LagrangeMultiplierCloseToEigenvalue) {
+    /// Test where the optimal lagrange multiplier is close to the smallest Eigenvalue. 
+    /// This test is supposed to test the numerical stability of the root finding of the secular equation.
+    /// The secular equation has poles at every eigenvalue, so the root is close to one of the poles. 
+    /// We therefore test here whether the rootfinding reliably finds a root close to the pole.
+    
+    /// TODO implement
+}
+
+TEST(NCSSolverTests, LargeScale) {
+    /// Here we test with large dynamically-sized matrices
+    
+    /// TODO implement
+}
+
+/// TODO test everything with float and double 
+/// TODO Test small fixed-sized matrices, i.e. 2-6, 20, 40 and 100 
+
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
