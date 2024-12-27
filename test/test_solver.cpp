@@ -204,17 +204,20 @@ TEST(NCSSolverTests, Smoke) {
 
 TEST(NCSSolverTests, OrthogonalbSmoke) {
     Vec eigs{Vec::Zero()};
-    eigs[1] = 1.8;
-    eigs[0] = 1.7;
-    eigs[2] = -0.3;
+
+    /// We need a larger spectrum for this test
+    eigs[0] = 3.3;
+    eigs[1] = -0.3;
+    eigs[2] = -3.2; 
 
     Mat D = Mat::Random(3, 3);
     Eigen::FullPivHouseholderQR<Mat> qr(D);
     Mat Q = qr.matrixQ();
     Mat C = Q * eigs.asDiagonal() * Q.transpose();
 
-    Vec b = Vec::Random();
-    b = Q.col(0).cross(b); // Make b orthogonal to one of the eigenvectors so that one of the d_i is zero    
+    Vec random_axis{.234976, .58736, -0.654};
+    Vec b = Q.col(0).cross(random_axis); // Make b orthogonal to one of the eigenvectors so that one of the d_i is zero.
+
 
     Scalar s = 1.;
 
