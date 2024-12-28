@@ -159,6 +159,12 @@ template<typename Scalar, int Dim>
     using Vec = Eigen::Vector<Scalar, Dim>;
     auto dims = C.cols();
     check_arguments(C, b, s);
+
+    /// Edge-case where C is the zero-matrix:
+    if(C.norm() < Scalar(1e-8)) {
+      return b.normalized() * s; /// In this case, the linear objective - b^T x is minimized by maximizing the dot-product b^T x, which is maximized if x has the same direction as b.
+    }
+
     /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices. Eigen outputs the eigenvalues sorted in increasing order, a precondition needed in the following.
     Eigen::SelfAdjointEigenSolver<Mat> es(C);
     Mat Q = es.eigenvectors();

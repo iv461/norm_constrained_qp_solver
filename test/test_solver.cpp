@@ -127,13 +127,6 @@ TEST_F(CheckArgumentsTest, MatrixTooSmall) {
     }, std::invalid_argument);
 }
 
-Mat createRandomMatrixC(const Vec &eigenvalues) {
-    Mat D = Mat::Random(3, 3);
-    Eigen::FullPivHouseholderQR<Mat> qr(D);
-    Mat Q = qr.matrixQ();
-    return Q * eigenvalues.asDiagonal() * Q.transpose();
-}
-
 Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
     return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
 }
@@ -184,8 +177,39 @@ TEST(NCSSolverTests, Zerob) {
     Vec smallest_eigenvector = Q.col(2);
 
     auto norm_diff = (smallest_eigenvector - x_hat).norm();
+    EXPECT_NEAR(x_hat.norm(), s, 1e-3);
     EXPECT_NEAR(norm_diff, 0, 1e-3);
 }
+
+TEST(NCSSolverTests, ZeroC) {
+    /// Test where the matrix C is zero. In this case the problem simplifies to a linear one.
+    Mat C{Mat::Zero()};
+    Vec b = Vec::Random();
+
+    Scalar s = 1.;
+
+    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    //fmt::println("x_hat: {}", fmt::streamed(x_hat));
+    EXPECT_NEAR(x_hat.normalized().dot(b.normalized()), 1, 1e-3);
+    EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+    
+}
+
+TEST(NCSSolverTests, RankOneC) {
+    /// Test where the matrix C has rank one, i.e. all eigenvalue
+    /// Small spectru
+}
+
+TEST(NCSSolverTests, SmallSpectrum) {
+    /// Test where all the eigenvalues of matrix C are very close to each other
+    /// TODO implement
+}
+
+TEST(NCSSolverTests, HugeSpectrum) {
+    /// Test where all the eigenvalues of matrix C are very close to each other
+    /// TODO implement
+}
+
 
 TEST(NCSSolverTests, LagrangeMultiplierCloseToEigenvalue) {
     /// Test where the optimal lagrange multiplier is close to the smallest Eigenvalue. 
@@ -217,8 +241,6 @@ TEST(NCSSolverTests, LargeScale) {
 
 /// TODO test everything with float and double 
 /// TODO Test small fixed-sized matrices, i.e. 2-6, 20, 40 and 100 
-
-
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
