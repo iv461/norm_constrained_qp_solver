@@ -32,6 +32,7 @@ TEST_F(CheckArgumentsTest, ValidArguments) {
     EXPECT_NO_THROW(solve_norm_constrained_qp(C, b, s));
 }
 
+
 // Negative test: Non-square matrix C
 TEST_F(CheckArgumentsTest, NonSquareMatrixC) {
     Eigen::MatrixXd C(3, 2); // Non-square matrix
@@ -137,113 +138,8 @@ Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
     return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
 }
 
-
-TEST(NCSSolverTests, ArgumentChecking) {
-    /// Test where b is the zero-vector. In this case the optimization problem simplifies to one without the linear term.
-    /// This problem has the optimal solution of the eigenvector associated with the smallest eigenvalue.
-
-    Vec eigs{Vec::Zero()};
-    eigs[0] = 1.8;
-    eigs[1] = 1.7;
-    eigs[2] = -0.3;
-
-    Mat D = Mat::Random(3, 3);
-    Eigen::FullPivHouseholderQR<Mat> qr(D);
-    Mat Q = qr.matrixQ();
-    Mat C = -(Q * eigs.asDiagonal() * Q.transpose());
-
-    Vec b = Vec::Zero();
-    
-    Scalar s = 1.;
-    auto x_hat = solve_norm_constrained_qp(C, b, s);
-    
-    Vec smallest_eigenvector = Q.col(2);
-    
-    auto norm_diff = (smallest_eigenvector - x_hat).norm();
-    fmt::println("norm_diff: {}", norm_diff);
-    EXPECT_NEAR(norm_diff, 0, 1e-3);
-}
-
-
 TEST(NCSSolverTests, Smoke) {
-
-    Mat D = Mat::Random(3, 3);
-
-    Eigen::FullPivHouseholderQR<Mat> qr(D);
-    Mat Q = qr.matrixQ();
-
-    Vec eigs{Vec::Zero()};
-    eigs[0] = 1.7;
-    eigs[1] = 1.8;
-    eigs[2] = -0.3;
-
-    Mat C = Q * eigs.asDiagonal() * Q.transpose();
-    Vec b = Vec::Random();
-    Scalar s = 1.;
-    auto x_hat = solve_norm_constrained_qp(C, b, s);
-
-    fmt::println("C:\n{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
-    
-    auto obj1 = evaluate_objective(C, b, x_hat);
-    fmt::println("obj1: {}", obj1);
-
-    /**
-     
-    // Verify symmetry
-    ASSERT_TRUE(symmetricMatrix.isApprox(symmetricMatrix.transpose(), 1e-10));
-
-    // Check eigenvalues
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(symmetricMatrix);
-    ASSERT_TRUE(solver.info() == Eigen::Success);
-
-    // Verify that two eigenvalues are approximately equal
-    EXPECT_NEAR(solver.eigenvalues()[0], solver.eigenvalues()[1], 1e-10);
-    EXPECT_DOUBLE_EQ(solver.eigenvalues()[2], 3.0);
-     */
-}
-
-TEST(NCSSolverTests, OrthogonalbSmoke) {
-    Vec eigs{Vec::Zero()};
-
-    /// We need a larger spectrum for this test
-    eigs[0] = 3.3;
-    eigs[1] = -0.3;
-    eigs[2] = -3.2; 
-
-    Mat D = Mat::Random(3, 3);
-    Eigen::FullPivHouseholderQR<Mat> qr(D);
-    Mat Q = qr.matrixQ();
-    Mat C = Q * eigs.asDiagonal() * Q.transpose();
-
-    Vec random_axis{.234976, .58736, -0.654};
-    Vec b = Q.col(0).cross(random_axis); // Make b orthogonal to one of the eigenvectors so that one of the d_i is zero.
-
-
-    Scalar s = 1.;
-
-    fmt::println("C:\n{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
-
-    auto x_hat = solve_norm_constrained_qp(C, b, s);
-    
-    auto obj1 = evaluate_objective(C, b, x_hat);
-    fmt::println("obj1: {}", obj1);
-    /**
-     
-    // Verify symmetry
-    ASSERT_TRUE(symmetricMatrix.isApprox(symmetricMatrix.transpose(), 1e-10));
-
-    // Check eigenvalues
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> solver(symmetricMatrix);
-    ASSERT_TRUE(solver.info() == Eigen::Success);
-
-    // Verify that two eigenvalues are approximately equal
-    EXPECT_NEAR(solver.eigenvalues()[0], solver.eigenvalues()[1], 1e-10);
-    EXPECT_DOUBLE_EQ(solver.eigenvalues()[2], 3.0);
-     */
-}
-
-TEST(NCSSolverTests, Hard1) {
-    
+    /// Smoke test.
     Mat C;
     C << -1.07822383, -2.78673686, -1.23438251
       ,-2.78673686, 0.93347297, 0.54945616
@@ -252,22 +148,23 @@ TEST(NCSSolverTests, Hard1) {
     Vec b;
     b << -0.68618036, -0.29540059, -0.51183855;
     Scalar s = 1.;
-
-    fmt::println("C:\n{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
-    C = -C;
-    b = -b;
-    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    
+    auto x_hat = ncs::solve_norm_constrained_qp(C, b, s);
     
     auto obj1 = evaluate_objective(C, b, x_hat);
-    fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
-    
-}
 
+    fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
+
+    /// Correct solution, obtained using pymanopt
+    Vec real_opt{-0.81721938, -0.48254904, -0.3151173};
+    EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);
+    
+    fmt::println("real_opt: {}, Objective: {}", fmt::streamed(real_opt.transpose()), evaluate_objective(C, b, real_opt));
+}
 
 TEST(NCSSolverTests, Zerob) {
     /// Test where b is the zero-vector. In this case the optimization problem simplifies to one without the linear term.
     /// This problem has the optimal solution of the eigenvector associated with the smallest eigenvalue.
-
     Vec eigs{Vec::Zero()};
     eigs[0] = 1.8;
     eigs[1] = 1.7;
@@ -276,7 +173,8 @@ TEST(NCSSolverTests, Zerob) {
     Mat D = Mat::Random(3, 3);
     Eigen::FullPivHouseholderQR<Mat> qr(D);
     Mat Q = qr.matrixQ();
-    Mat C = -(Q * eigs.asDiagonal() * Q.transpose());
+
+    Mat C = (Q * eigs.asDiagonal() * Q.transpose());
 
     Vec b = Vec::Zero();
     
@@ -286,17 +184,29 @@ TEST(NCSSolverTests, Zerob) {
     Vec smallest_eigenvector = Q.col(2);
 
     auto norm_diff = (smallest_eigenvector - x_hat).norm();
-    fmt::println("norm_diff: {}", norm_diff);
     EXPECT_NEAR(norm_diff, 0, 1e-3);
 }
 
 TEST(NCSSolverTests, LagrangeMultiplierCloseToEigenvalue) {
     /// Test where the optimal lagrange multiplier is close to the smallest Eigenvalue. 
     /// This test is supposed to test the numerical stability of the root finding of the secular equation.
-    /// The secular equation has poles at every eigenvalue, so the root is close to one of the poles. 
+    /// The secular equation has poles at every eigenvalue, so the root is very close to one of the poles. 
     /// We therefore test here whether the rootfinding reliably finds a root close to the pole.
+    Mat C;
+    C << 0.16904076, -0.57421902,  1.08854251,
+        -0.57421902, -1.21054522, -2.82741677,
+        1.08854251, -2.82741677,  0.84150445;
+
+    Vec b;
+    b << -0.8726189, 0.10428207, -0.21986756;
+    Scalar s = 1.;
+    auto x_hat = ncs::solve_norm_constrained_qp(C, b, s);
     
-    /// TODO implement
+    auto obj1 = evaluate_objective(C, b, x_hat);
+
+    /// Correct solution, obtained using pymanopt
+    Vec real_opt{-0.31101768,  0.76470583,  0.56435184};
+    EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);    
 }
 
 TEST(NCSSolverTests, LargeScale) {
