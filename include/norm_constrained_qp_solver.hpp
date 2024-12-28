@@ -161,7 +161,10 @@ template<typename Scalar, int Dim>
     check_arguments(C, b, s);
 
     /// Edge-case where C is the zero-matrix:
-    if(C.norm() < Scalar(1e-8)) {
+    if(C.norm() < Scalar(1e-8)) { 
+      if(b.norm() < Scalar(1e-8)) { /// Check if b is also zero, otherwise we may divide by zero
+        return Vec::Ones(dims).normalized() * s; /// If both b and C are zero, return an arbitrary feasible solution, for example ones.
+      }
       return b.normalized() * s; /// In this case, the linear objective - b^T x is minimized by maximizing the dot-product b^T x, which is maximized if x has the same direction as b.
     }
 

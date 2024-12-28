@@ -195,6 +195,19 @@ TEST(NCSSolverTests, ZeroC) {
     
 }
 
+TEST(NCSSolverTests, ZeroCandB) {
+    /// Test where the matrix C is zero and b is zero. In this case, the objective is always zero.
+    Mat C{Mat::Zero()};
+    Vec b{Vec::Zero()};
+
+    Scalar s = 1.;
+
+    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    
+    /// Solution does not matter, it only needs to be feasible
+    EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+}
+
 TEST(NCSSolverTests, RankOneC) {
     /// Test where the matrix C has rank one, i.e. all eigenvalue
     /// Small spectru
