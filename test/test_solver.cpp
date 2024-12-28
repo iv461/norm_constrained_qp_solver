@@ -242,6 +242,28 @@ TEST(NCSSolverTests, OrthogonalbSmoke) {
      */
 }
 
+TEST(NCSSolverTests, Hard1) {
+    
+    Mat C;
+    C << -1.07822383, -2.78673686, -1.23438251
+      ,-2.78673686, 0.93347297, 0.54945616
+      , -1.23438251, 0.54945616, -0.05524914;
+
+    Vec b;
+    b << -0.68618036, -0.29540059, -0.51183855;
+    Scalar s = 1.;
+
+    fmt::println("C:\n{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
+    C = -C;
+    b = -b;
+    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    
+    auto obj1 = evaluate_objective(C, b, x_hat);
+    fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
+    
+}
+
+
 TEST(NCSSolverTests, Zerob) {
     /// Test where b is the zero-vector. In this case the optimization problem simplifies to one without the linear term.
     /// This problem has the optimal solution of the eigenvector associated with the smallest eigenvalue.

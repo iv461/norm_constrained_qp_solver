@@ -101,18 +101,19 @@ template<typename Scalar, int Dim>
 
     Vec d = Q.transpose() * b;
 
-    fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D), fmt::streamed(d.transpose()));
+    fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D.transpose()), fmt::streamed(d.transpose()));
+    
 
     /// Find the index of the maximum eigenvalue
-    size_t i_max_eig = 0; 
-    for (int i = 1; i < dims; i++)
-      if (D[i] > D[i_max_eig]) i_max_eig = i;
+    size_t i_min_eig = 0; 
+    for (int i = 0; i < dims; i++)
+      if (D[i] < D[i_min_eig]) i_min_eig = i;
    
     Vec x = Vec::Zero(dims); // The solution
 
     /// Case analysis whether the optimal Lagrange multiplier is the smallest eigenvalue: This is only the case if all d_i are zero. (Which can only happen if b is the zero vector)
     if((d.array() == 0).all()) {
-        x = Q.col(i_max_eig);
+        x = Q.col(i_min_eig);
         return x;
     }
 
@@ -120,28 +121,33 @@ template<typename Scalar, int Dim>
     /// So we continue with root-finding.
   
     Vec d_sq = d.array().square();
+    fmt::println("d_sq: {}", fmt::streamed(d_sq) );
 
     const auto secular_eq = [&](Scalar x) { return (d_sq.array() / (D.array() - x).square()).sum() - s * s; };
 
     /// Now bracket the root. First, find out which is the right-most pole, since the right-most root comes after the last pole. 
     /// If and only if d_i^2 is exactly zero, then this pole vanished mathematically (using real numbers). Numerically, it also vanishes if it's width is less than 1 ULP, we well check this later.
-    size_t i_last_pole = 0; 
-    for (int i = 1; i < dims; i++)
-      if (d_sq[i] != 0) i_last_pole = i;
+    /// TODO HERE WE ASSUME SORTED EIGENVALUES
+    size_t i_leftmost_pole = 0; 
+    for (int i = (dims - 1); i >= 0; i--)
+    if (d_sq[i] != 0) i_leftmost_pole = i;
+      //if (d_sq[i] != 0) i_last_pole = i;
 
-    auto last_pole = D[i_last_pole];
-    auto abs_d_max = std::abs(d[i_last_pole]);
+    fmt::println("i_leftmost_pole: {}", i_leftmost_pole);
+
+    auto last_pole = D[i_leftmost_pole];
+    auto abs_d_max = std::abs(d[i_leftmost_pole]);
 
     /// Now compute the interval. In the following, we locate the root to maximum machine precision.
-    Scalar next_float_after_pole = std::nextafter(last_pole, last_pole + Scalar(1));
-    Scalar rightmost_root = 0;
+    Scalar next_float_before_pole = std::nextafter(last_pole, last_pole - Scalar(1));
+    Scalar leftmost_root = 0;
     /// At the pole, the secular equation is mathematically always undefined (division by zero) and numerically always infinite.
     /// If at the next float to the right the secular equation is already negative, we know that the root is located between the pole and the next float, i.e. we reached machimum machine precision and cannot locate it more accurately.
-    if(secular_eq(next_float_after_pole) <= 0) {
-      rightmost_root = next_float_after_pole;
+    if(secular_eq(next_float_before_pole) <= 0) {
+      leftmost_root = next_float_before_pole;
     } else {
-      const Scalar root_interval_left_border = next_float_after_pole;      
-      const Scalar root_interval_right_border = next_float_after_pole + d.norm() / s;
+      const Scalar root_interval_right_border = next_float_before_pole;
+      const Scalar root_interval_left_border = next_float_before_pole - d.norm() / s;      
     
       fmt::println("root bracket: [{}, {}]", root_interval_left_border, root_interval_right_border);
 
@@ -150,18 +156,21 @@ template<typename Scalar, int Dim>
       const auto [root, required_iterations] = bisect<Scalar>(secular_eq, root_interval_left_border,
           root_interval_right_border, 
           ULP, 50);
-      rightmost_root = root;
+      leftmost_root = root;
       fmt::print("Root-finding took {} iterations and found the Lagrange multiplier {} where the function is: {}\n",
           required_iterations, root, secular_eq(root));
 
     }
 
-    Vec denom = (D.array() - rightmost_root);
+    Vec denom = (D.array() - leftmost_root);
+    Vec f;
     for(int i = 0; i < dims; i++)
       if(denom[i] != 0) /// Prevent division by zero 
-        x[i] = d[i] / denom[i];
+        f[i] = d[i] / denom[i];
       else
-        x[i] = 0;  /// as required by the KKT conditions, Eq. (13) in [1]
+        f[i] = 0;  /// as required by the KKT conditions, Eq. (13) in [1]
+    
+    x = Q * f;
 
     return x;
   }
