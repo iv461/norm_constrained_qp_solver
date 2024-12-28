@@ -27,7 +27,7 @@ The solver is also fast for small fixed-sized matrices.
 
 # Install 
 
-Install the conan package: 
+Install the binary using the conan package manager: 
 
 ```sh
 conan install norm_constrained_qp_solver
@@ -42,7 +42,7 @@ Eigen::Matrix3<double> C = Eigen::Matrix3<double>::Ones();
 Eigen::Vector3<double> b = Eigen::Vector3<double>::Ones();
 double s = 1.;
 
-Vec optimal_x = ncs::solve_norm_constrained_qp(C, b, s);
+Eigen::Vector3<double> optimal_x = ncs::solve_norm_constrained_qp(C, b, s);
 ```
 
 # Build from source 
@@ -51,7 +51,7 @@ To build from source and run the tests, see [Building from source](doc/build_fro
 
 # License 
 
-This code is lincensed under the MIT licence.
+This code is licensed under the MIT license.
 
 # Related projects 
 

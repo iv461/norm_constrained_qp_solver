@@ -19,17 +19,13 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f, Scalar a, Scal
                                  size_t max_iterations) {
   Scalar c = a;
   size_t i = 0;
-
   if (f(a) * f(b) >= 0) {  /// Check for opposite sign
     throw std::invalid_argument(fmt::format(
         "The function must have opposite sign, but f({}) is {} and f({}) is {}", a, f(a), b, f(b)));
   }
-
   while ((b - a) >= eps && i < max_iterations) {
     i++;
-
     c = Scalar(.5) * (a + b);
-
     Scalar f_c = f(c);
     Scalar f_a = f(a);
     if (f_c == Scalar(0))
