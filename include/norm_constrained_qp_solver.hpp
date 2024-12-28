@@ -66,7 +66,7 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
         throw std::invalid_argument(fmt::format("s must be a positive and non-zero, but it is instead {}", s));
     const auto s_min = std::numeric_limits<Scalar>::epsilon() * 32;
     if(s < s_min)
-        throw std::invalid_argument(fmt::format("s is very small, an accurate result is not guaranteed, it must be above {}, but instead it is: {}", s_min, s));
+        throw std::invalid_argument(fmt::format("s is very small, an accurate result is not guaranteed, it must be greater or equal {}, but instead it is: {}", s_min, s));
 }
 }
 
@@ -76,7 +76,7 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
 /// 
 /// subject to  ||x|| = s
 ///
-/// The matrix A should be symmetric (but it does not need to be positive definite). 
+/// The matrix C should be symmetric (but it does not need to be positive definite). 
 /// The algorithm is based on eigen-decomposition with subsequent root-finding. 
 
 /// We implement the first method from [1] that uses explicit root-finding which was evaluated in the paper to be
@@ -94,7 +94,7 @@ template<typename Scalar, int Dim>
     auto dims = C.cols();
     check_arguments(C, b, s);
 
-    /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices
+    /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices. Eigen outputs the eigenvalues sorted in increasing order, a precondition needed in the following.
     Eigen::SelfAdjointEigenSolver<Mat> es(C);
     Mat Q = es.eigenvectors();
     Vec D = es.eigenvalues();
@@ -127,11 +127,9 @@ template<typename Scalar, int Dim>
 
     /// Now bracket the root. First, find out which is the right-most pole, since the right-most root comes after the last pole. 
     /// If and only if d_i^2 is exactly zero, then this pole vanished mathematically (using real numbers). Numerically, it also vanishes if it's width is less than 1 ULP, we well check this later.
-    /// TODO HERE WE ASSUME SORTED EIGENVALUES
     size_t i_leftmost_pole = 0; 
     for (int i = (dims - 1); i >= 0; i--)
-    if (d_sq[i] != 0) i_leftmost_pole = i;
-      //if (d_sq[i] != 0) i_last_pole = i;
+      if (d_sq[i] != 0) i_leftmost_pole = i;
 
     fmt::println("i_leftmost_pole: {}", i_leftmost_pole);
 
@@ -142,7 +140,7 @@ template<typename Scalar, int Dim>
     Scalar next_float_before_pole = std::nextafter(last_pole, last_pole - Scalar(1));
     Scalar leftmost_root = 0;
     /// At the pole, the secular equation is mathematically always undefined (division by zero) and numerically always infinite.
-    /// If at the next float to the right the secular equation is already negative, we know that the root is located between the pole and the next float, i.e. we reached machimum machine precision and cannot locate it more accurately.
+    /// If at the next float to the right the secular equation is already negative, we know that the root is located between the pole and the next float, i.e. we reached maximum machine precision and cannot locate it more accurately.
     if(secular_eq(next_float_before_pole) <= 0) {
       leftmost_root = next_float_before_pole;
     } else {
@@ -151,11 +149,11 @@ template<typename Scalar, int Dim>
     
       fmt::println("root bracket: [{}, {}]", root_interval_left_border, root_interval_right_border);
 
-      /// Now use bisection that is guaranteed to converge to a root as long as the interval is correct.
+      /// Now use bisection, it is guaranteed to converge to a root as long as the interval is correct.
       const Scalar ULP = std::numeric_limits<Scalar>::epsilon();
       const auto [root, required_iterations] = bisect<Scalar>(secular_eq, root_interval_left_border,
           root_interval_right_border, 
-          ULP, 50);
+          ULP, 80);
       leftmost_root = root;
       fmt::print("Root-finding took {} iterations and found the Lagrange multiplier {} where the function is: {}\n",
           required_iterations, root, secular_eq(root));
@@ -163,7 +161,7 @@ template<typename Scalar, int Dim>
     }
 
     Vec denom = (D.array() - leftmost_root);
-    Vec f;
+    Vec f{Vec::Zero()};
     for(int i = 0; i < dims; i++)
       if(denom[i] != 0) /// Prevent division by zero 
         f[i] = d[i] / denom[i];
@@ -171,7 +169,6 @@ template<typename Scalar, int Dim>
         f[i] = 0;  /// as required by the KKT conditions, Eq. (13) in [1]
     
     x = Q * f;
-
     return x;
   }
 }
