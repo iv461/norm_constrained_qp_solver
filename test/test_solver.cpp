@@ -246,6 +246,28 @@ TEST(NCSSolverTests, LagrangeMultiplierCloseToEigenvalue) {
     EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);    
 }
 
+TEST(NCSSolverTests, Hard2) {
+    /// Another instance with b orthogonal to one of the eigenvectors
+    Eigen::Matrix2<Scalar> C;
+    C <<  3.29193704,  0.22878861,
+        0.22878861, -3.19193704;
+
+    Eigen::Vector2<Scalar> b;
+    b << -0.0199698, 0.56664822;
+    Scalar s = 1.;
+
+    auto x_hat = ncs::solve_norm_constrained_qp(C, b, s);
+
+    /// Correct solution, obtained using pymanopt
+    Eigen::Vector2<Scalar> real_opt{-0.03522011,  0.99937958};
+    EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);
+
+    Scalar obj_opt = -2.1669999983139068;
+    Scalar obj_hat = Scalar(0.5) * x_hat.transpose() * C * x_hat - b.dot(x_hat);
+    EXPECT_NEAR(obj_opt, obj_hat, 1e-3);
+}
+
+
 TEST(NCSSolverTests, LargeScale) {
     /// Here we test with large dynamically-sized matrices
     

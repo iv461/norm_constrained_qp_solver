@@ -72,8 +72,9 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C,
 template<typename Scalar, int Dim>
 Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D, 
     const Eigen::Vector<Scalar, Dim> &d, Scalar s) {
+    
     const int dims = D.size();
-    const Vec d_sq = d.array().square();
+    const Eigen::Vector<Scalar, Dim> d_sq = d.array().square();
     //fmt::println("d_sq: {}", fmt::streamed(d_sq) );
 
     const auto secular_eq = [&](Scalar x) { return (d_sq.array() / (D.array() - x).square()).sum() - s * s; };
