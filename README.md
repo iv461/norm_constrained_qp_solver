@@ -13,11 +13,10 @@ This is a tiny and fast solver for solving the non-convex optimization problem w
 \end{equation}
 ```
 
-where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite) and $s$ is a parameter.
+where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite) and $s$ is a parameter. This problem is also known as the Trust-Region Subproblem (TRS).
 
-This problem is also known as the Trust-Region Subproblem (TRS).
-The solver is based on eigen-decomposition with subsequent root-finding.
 The solver is optimized for small, fixed-sized matrices.
+It is based on eigen-decomposition with subsequent root-finding.
 
 # Dependencies 
 
@@ -38,7 +37,7 @@ conan install norm_constrained_qp_solver
 #include <norm_constrained_qp_solver.hpp>
 
 Eigen::Matrix3<double> C = Eigen::Matrix3<double>::Ones();
-Eigen::Vector3<double> b = Eigen::Vector3<double>::Ones();
+Eigen::Vector3<double> b = Eigen::Vector3<double>::Random();
 double s = 1.;
 
 Eigen::Vector3<double> optimal_x = ncs::solve_norm_constrained_qp(C, b, s);

@@ -68,7 +68,8 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vect
         fmt::streamed(b)));
   if (!C.isApprox(C.transpose())) {
     Scalar norm_diff = (C - C.transpose()).norm();
-    throw std::invalid_argument(fmt::format("The matrix C must be symmetric, instead ||C - C^T||_2 is: {}", norm_diff));
+    throw std::invalid_argument(
+        fmt::format("The matrix C must be symmetric, instead ||C - C^T||_2 is: {}", norm_diff));
   }
   if (!(s > 0))
     throw std::invalid_argument(
@@ -81,37 +82,37 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vect
                     s_min, s));
 }
 
+/// Find the root of the secular equation.
 template <typename Scalar, int Dim>
 Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D,
                               const Eigen::Vector<Scalar, Dim> &d, Scalar s) {
   const int dims = D.size();
   const Eigen::Vector<Scalar, Dim> d_sq = d.array().square();
-  // fmt::println("d_sq: {}", fmt::streamed(d_sq) );
 
   const auto secular_eq = [&](Scalar x) {
     return (d_sq.array() / (D.array() - x).square()).sum() - s * s;
   };
 
-  /// Now bracket the root. First, find out which is the right-most pole, since the right-most root
-  /// comes after the last pole. If and only if d_i^2 is exactly zero, then this pole vanished
-  /// mathematically (using real numbers). Numerically, it also vanishes if it's width is less than
-  /// 1 ULP, we well check this later.
+  /// Now bracket the root. First, find out which is the leftmost pole, since the leftmost root
+  /// is before the leftmost pole. If and only if d_i^2 is exactly zero, then this pole has vanished
+  /// mathematically. It also vanishes numerically if it's width is less than
+  /// 1 ULP, we will check this later.
   size_t i_leftmost_pole = 0;
   for (int i = (dims - 1); i >= 0; i--)
     if (d_sq[i] != 0) i_leftmost_pole = i;
 
   // fmt::println("i_leftmost_pole: {}", i_leftmost_pole);
 
-  auto last_pole = D[i_leftmost_pole];
+  auto leftmost_pole = D[i_leftmost_pole];
   auto abs_d_max = std::abs(d[i_leftmost_pole]);
 
   /// Now compute the interval. In the following, we locate the root to maximum machine precision.
-  Scalar next_float_before_pole = std::nextafter(last_pole, last_pole - Scalar(1));
+  Scalar next_float_before_pole = std::nextafter(leftmost_pole, leftmost_pole - Scalar(1));
   Scalar leftmost_root = 0;
-  /// At the pole, the secular equation is mathematically always undefined (division by zero) and
-  /// numerically always infinite. If at the next float to the right the secular equation is already
-  /// negative, we know that the root is located between the pole and the next float, i.e. we
-  /// reached maximum machine precision and cannot locate it more accurately.
+  /// At the pole, the secular equation is always mathematically undefined (division by zero) and
+  /// is always numerically infinite. If at the next float to the right the secular equation is
+  /// already negative, we know that the root is between the pole and the next float, i.e. have
+  /// reached maximum machine precision and cannot locate it more precisely.
   if (secular_eq(next_float_before_pole) <= 0) {
     leftmost_root = next_float_before_pole;
   } else {
@@ -136,7 +137,7 @@ Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D,
 }
 
 /// Computes the optimal solution given the optimal Lagrange multiplier l (root of the secular
-/// equation) and given the eigenvalue decomposition Q, D of the matrix
+/// equation) and given the eigenvalue decomposition (Q, D) of the matrix.
 template <typename Scalar, int Dim>
 Eigen::Vector<Scalar, Dim> extract_solution(const Eigen::Matrix<Scalar, Dim, Dim> &Q,
                                             const Eigen::Vector<Scalar, Dim> &D,
@@ -160,12 +161,12 @@ Eigen::Vector<Scalar, Dim> extract_solution(const Eigen::Matrix<Scalar, Dim, Dim
 ///
 /// subject to  ||x|| = s
 ///
-/// The matrix C should be symmetric (but it does not need to be positive definite).
-/// The algorithm is based on eigen-decomposition with subsequent root-finding.
+/// The matrix C should be symmetric (but not positive definite).
+/// The algorithm is based on eigendecomposition followed by root-finding.
 
-/// We implement the first method from [1] that uses explicit root-finding which was evaluated in
-/// the paper to be the fastest and most accurate method. In this paper, the discussion about this
-/// problem starts at Eq. (10).
+/// We implement the first method from [1] that uses explicit root-finding, which was described in
+/// that paper to be the fastest and most accurate method. In this paper, the discussion of this
+/// problem starts with Eq. (10).
 ///
 /// References:
 /// [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt,
@@ -178,37 +179,40 @@ static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(
   auto dims = C.cols();
   check_arguments(C, b, s);
 
-  /// Edge-case where C is the zero-matrix:
+  /// First, handle the edge-case where C is the zero matrix:
   if (C.norm() < Scalar(1e-8)) {
-    if (b.norm() < Scalar(1e-8)) {  /// Check if b is also zero, otherwise we may divide by zero
+    if (b.norm() <
+        Scalar(1e-8)) {  /// Check if b is also zero, otherwise we may divide by zero below
       return Vec::Ones(dims).normalized() * s;  /// If both b and C are zero, return an arbitrary
                                                 /// feasible solution, for example ones.
     }
     return b.normalized() *
-           s;  /// In this case, the linear objective - b^T x is minimized by maximizing the
+           s;  /// If b is not zero, the linear objective - b^T x is minimized by maximizing the
                /// dot-product b^T x, which is maximized if x has the same direction as b.
   }
 
-  /// Since A is symmetric, t we use solver for symmetric (=self-adjoint) matrices. Eigen outputs
-  /// the eigenvalues sorted in increasing order, a precondition needed in the following.
+  /// Do eigen-decomposition. Since A is symmetric, we use the solver for symmetric (=self-adjoint)
+  /// matrices. Eigen outputs the eigenvalues sorted in increasing order, a precondition needed in
+  /// the following.
   Eigen::SelfAdjointEigenSolver<Mat> es(C);
   Mat Q = es.eigenvectors();
   Vec D = es.eigenvalues();
   // fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D.transpose()),
   // fmt::streamed(d.transpose()));
 
-  /// Case analysis whether the optimal Lagrange multiplier is the smallest eigenvalue: This is only
+  /// Handle the case where the optimal Lagrange multiplier is the smallest eigenvalue: This is only
   /// the case if all d_i are zero. (Which can only happen if b is the zero vector)
   Vec d = Q.transpose() * b;
   if ((d.array() == 0).all()) {
     return Q.col(0);
   }
 
-  /// Otherwise, if at least one d_i is non-zero, the following secular equation always has a root.
-  /// And the optimal Lagrange multiplier must be the root of it. (i.e. it must satisfy the KKT
-  /// conditions, Eq. (13) in [1]) So we continue with root-finding.
+  /// Otherwise, continue with root-finding. If at least one d_i is non-zero, the secular equation
+  /// always has a root.
   Scalar leftmost_root = solve_secular_equation(D, d, s);
 
+  /// Finally, extract the optimal solution given the optimal Lagrange multiplier (the root of the
+  /// secular equation)
   Vec x = extract_solution(Q, D, d, leftmost_root);
   return x;
 }
