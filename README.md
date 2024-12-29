@@ -5,7 +5,6 @@
 This is a tiny and fast solver for solving the non-convex optimization problem with unit-norm equality constraint to global optimality:
 
 ```math
-
 \begin{equation}
 	\begin{aligned}
 		\min_{x \in \mathbb{R}^d} \quad & \frac{1}{2} \mathbf{x}^T \mathbf{C} \mathbf{x} - \mathbf{b}^T \mathbf{x}\\
@@ -18,7 +17,7 @@ where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite)
 
 This problem is also known as the Trust-Region Subproblem (TRS).
 The solver is based on eigen-decomposition with subsequent root-finding.
-The solver is also fast for small fixed-sized matrices.
+The solver is optimized for small, fixed-sized matrices.
 
 # Dependencies 
 
@@ -55,6 +54,6 @@ This code is licensed under the MIT license.
 
 # Related projects 
 
-- [TRS.jl](https://github.com/oxfordcontrol/TRS.jl) Julia package, offers additional features such as ellipsoidal norms and additional linear constraints
+- [TRS.jl](https://github.com/oxfordcontrol/TRS.jl) Julia package, optimized for large and sparse matrices, with  additional linear constraints
 - [QPnorm.jl](https://github.com/oxfordcontrol/QPnorm.jl) Julia package, supports additionally a minimum norm constraint 
 - [Manopt](https://www.manopt.org/) Matlab/Python/Julia package for manifold optimization, supports optimization over the sphere (=norm-constraint), but without global optimality guarantee

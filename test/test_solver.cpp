@@ -4,12 +4,110 @@
 
 #include <norm_constrained_qp_solver.hpp>
 
-
 using namespace ncs;
 
 using Scalar = double;
 using Mat = Eigen::Matrix3<Scalar>;
 using Vec = Eigen::Vector3<Scalar>;
+
+Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
+  return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
+}
+
+TEST(NCSSolverTests, Smoke) {
+  /// Smoke test.
+  Mat C;
+  C << -1.07822383, -2.78673686, -1.23438251, -2.78673686, 0.93347297, 0.54945616, -1.23438251,
+      0.54945616, -0.05524914;
+
+  Vec b;
+  b << -0.68618036, -0.29540059, -0.51183855;
+  Scalar s = 1.;
+
+  auto x_hat = ncs::solve_norm_constrained_qp(C, b, s);
+
+  auto obj1 = evaluate_objective(C, b, x_hat);
+
+  fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
+
+  /// Correct solution, obtained using pymanopt
+  Vec real_opt{-0.81721938, -0.48254904, -0.3151173};
+  EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);
+
+  fmt::println("real_opt: {}, Objective: {}", fmt::streamed(real_opt.transpose()),
+               evaluate_objective(C, b, real_opt));
+}
+
+TEST(NCSSolverTests, FuzzySmoke) {
+  /// Fuzzy-smoke
+  int trials = 1000;
+  for (int i_trial = 0; i_trial < trials; i_trial++) {
+    Mat D = Mat::Random(3, 3);
+    Mat C = D + D.transpose();
+
+    Vec b = Vec::Random();
+
+    Vec s_vec = Vec::Random();
+    Scalar s = s_vec[0] * s_vec[0] + 1e-6;
+
+    fmt::println("C\n:{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
+    auto x_hat = solve_norm_constrained_qp(C, b, s);
+    EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+  }
+}
+
+TEST(NCSSolverTests, Zerob) {
+  /// Test where b is the zero-vector. In this case the optimization problem simplifies to one
+  /// without the linear term. This problem has the optimal solution of the eigenvector associated
+  /// with the smallest eigenvalue.
+  Vec eigs{Vec::Zero()};
+  eigs[0] = 1.8;
+  eigs[1] = 1.7;
+  eigs[2] = -0.3;
+
+  Mat D = Mat::Random(3, 3);
+  Eigen::FullPivHouseholderQR<Mat> qr(D);
+  Mat Q = qr.matrixQ();
+
+  Mat C = (Q * eigs.asDiagonal() * Q.transpose());
+
+  Vec b = Vec::Zero();
+
+  Scalar s = 1.;
+  auto x_hat = solve_norm_constrained_qp(C, b, s);
+
+  Vec smallest_eigenvector = Q.col(2);
+
+  auto norm_diff = (smallest_eigenvector - x_hat).norm();
+  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+  EXPECT_NEAR(norm_diff, 0, 1e-3);
+}
+
+TEST(NCSSolverTests, ZeroC) {
+  /// Test where the matrix C is zero. In this case the problem simplifies to a linear one.
+  Mat C{Mat::Zero()};
+  Vec b = Vec::Random();
+
+  Scalar s = 1.;
+
+  auto x_hat = solve_norm_constrained_qp(C, b, s);
+  // fmt::println("x_hat: {}", fmt::streamed(x_hat));
+  EXPECT_NEAR(x_hat.normalized().dot(b.normalized()), 1, 1e-3);
+  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+}
+
+TEST(NCSSolverTests, ZeroCandB) {
+  /// Test where the matrix C is zero and b is zero. In this case, the objective is always zero.
+  Mat C{Mat::Zero()};
+  Vec b{Vec::Zero()};
+
+  Scalar s = 1.;
+
+  auto x_hat = solve_norm_constrained_qp(C, b, s);
+
+  /// Solution does not matter, it only needs to be feasible
+  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
+}
 
 // Test suite for argument validation
 class CheckArgumentsTest : public ::testing::Test {
@@ -110,87 +208,6 @@ TEST_F(CheckArgumentsTest, MatrixTooSmall) {
   Eigen::VectorXd b(1);
   Scalar s = 1.0;
   EXPECT_THROW({ solve_norm_constrained_qp(C, b, s); }, std::invalid_argument);
-}
-
-Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
-  return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
-}
-
-TEST(NCSSolverTests, Smoke) {
-  /// Smoke test.
-  Mat C;
-  C << -1.07822383, -2.78673686, -1.23438251, -2.78673686, 0.93347297, 0.54945616, -1.23438251,
-      0.54945616, -0.05524914;
-
-  Vec b;
-  b << -0.68618036, -0.29540059, -0.51183855;
-  Scalar s = 1.;
-
-  auto x_hat = ncs::solve_norm_constrained_qp(C, b, s);
-
-  auto obj1 = evaluate_objective(C, b, x_hat);
-
-  fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
-
-  /// Correct solution, obtained using pymanopt
-  Vec real_opt{-0.81721938, -0.48254904, -0.3151173};
-  EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);
-
-  fmt::println("real_opt: {}, Objective: {}", fmt::streamed(real_opt.transpose()),
-               evaluate_objective(C, b, real_opt));
-}
-
-TEST(NCSSolverTests, Zerob) {
-  /// Test where b is the zero-vector. In this case the optimization problem simplifies to one
-  /// without the linear term. This problem has the optimal solution of the eigenvector associated
-  /// with the smallest eigenvalue.
-  Vec eigs{Vec::Zero()};
-  eigs[0] = 1.8;
-  eigs[1] = 1.7;
-  eigs[2] = -0.3;
-
-  Mat D = Mat::Random(3, 3);
-  Eigen::FullPivHouseholderQR<Mat> qr(D);
-  Mat Q = qr.matrixQ();
-
-  Mat C = (Q * eigs.asDiagonal() * Q.transpose());
-
-  Vec b = Vec::Zero();
-
-  Scalar s = 1.;
-  auto x_hat = solve_norm_constrained_qp(C, b, s);
-
-  Vec smallest_eigenvector = Q.col(2);
-
-  auto norm_diff = (smallest_eigenvector - x_hat).norm();
-  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
-  EXPECT_NEAR(norm_diff, 0, 1e-3);
-}
-
-TEST(NCSSolverTests, ZeroC) {
-  /// Test where the matrix C is zero. In this case the problem simplifies to a linear one.
-  Mat C{Mat::Zero()};
-  Vec b = Vec::Random();
-
-  Scalar s = 1.;
-
-  auto x_hat = solve_norm_constrained_qp(C, b, s);
-  // fmt::println("x_hat: {}", fmt::streamed(x_hat));
-  EXPECT_NEAR(x_hat.normalized().dot(b.normalized()), 1, 1e-3);
-  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
-}
-
-TEST(NCSSolverTests, ZeroCandB) {
-  /// Test where the matrix C is zero and b is zero. In this case, the objective is always zero.
-  Mat C{Mat::Zero()};
-  Vec b{Vec::Zero()};
-
-  Scalar s = 1.;
-
-  auto x_hat = solve_norm_constrained_qp(C, b, s);
-
-  /// Solution does not matter, it only needs to be feasible
-  EXPECT_NEAR(x_hat.norm(), s, 1e-3);
 }
 
 TEST(NCSSolverTests, RankOneC) {

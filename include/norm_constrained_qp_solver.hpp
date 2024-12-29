@@ -66,8 +66,10 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vect
     throw std::invalid_argument(fmt::format(
         "b must be finite, i.e. not contain NaN or Infinite value, but instead b is: {}",
         fmt::streamed(b)));
-  if (!C.isApprox(C.transpose()))
-    throw std::invalid_argument(fmt::format("The matrix C must be symmetric"));
+  if (!C.isApprox(C.transpose())) {
+    Scalar norm_diff = (C - C.transpose()).norm();
+    throw std::invalid_argument(fmt::format("The matrix C must be symmetric, instead ||C - C^T||_2 is: {}", norm_diff));
+  }
   if (!(s > 0))
     throw std::invalid_argument(
         fmt::format("s must be a positive and non-zero, but it is instead {}", s));
