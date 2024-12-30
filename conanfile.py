@@ -34,6 +34,8 @@ class NCSRecipe(ConanFile):
     def requirements(self):
         self.requires("eigen/3.4.0", transitive_headers=True)
         self.requires("fmt/10.2.1", transitive_headers=True)
+        self.requires("spectra/1.0.1", transitive_headers=True)
+        
         self.test_requires("gtest/1.14.0")        
     
     def generate(self):

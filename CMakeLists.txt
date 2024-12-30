@@ -20,6 +20,7 @@ endif()
 
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(fmt REQUIRED)
+find_package(spectra REQUIRED)
 
 add_library(norm_constrained_qp_solver INTERFACE)
 
@@ -30,6 +31,7 @@ target_include_directories(
 
 target_link_libraries(norm_constrained_qp_solver INTERFACE
     Eigen3::Eigen
+    Spectra::Spectra
     fmt::fmt
     )
  

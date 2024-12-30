@@ -7,6 +7,7 @@ add_executable(tests test_solver.cpp)
 # Link the test executable with GTest and your library
 target_link_libraries(tests PRIVATE 
     gtest::gtest 
+    Spectra::Spectra
     Eigen3::Eigen
     fmt::fmt
     GTest::Main

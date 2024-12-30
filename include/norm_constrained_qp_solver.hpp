@@ -216,4 +216,5 @@ static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(
   Vec x = extract_solution(Q, D, d, leftmost_root);
   return x;
 }
+
 }  // namespace ncs

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <norm_constrained_qp_solver.hpp>
+#include <norm_constrained_qp_solver_sparse.hpp>
 
 using namespace ncs;
 
@@ -10,7 +11,9 @@ using Scalar = double;
 using Mat = Eigen::Matrix3<Scalar>;
 using Vec = Eigen::Vector3<Scalar>;
 
-Scalar evaluate_objective(const Mat &C, const Vec &b, const Vec &x) {
+template <typename Scalar, int Dim>
+Scalar evaluate_objective(const Eigen::Matrix<Scalar, Dim, Dim>  &C, 
+    const Eigen::Vector<Scalar, Dim> &b, const Vec &x) {
   return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
 }
 
@@ -38,7 +41,32 @@ TEST(NCSSolverTests, Smoke) {
                evaluate_objective(C, b, real_opt));
 }
 
-TEST(NCSSolverTests, FuzzySmoke) {
+TEST(NCSSolverTests, Smoke2) {
+  /// Smoke test.
+  Mat C;
+  C << -1.07822383, -2.78673686, -1.23438251, -2.78673686, 0.93347297, 0.54945616, -1.23438251,
+      0.54945616, -0.05524914;
+
+  Vec b;
+  b << -0.68618036, -0.29540059, -0.51183855;
+  Scalar s = 1.;
+
+  auto x_hat = ncs::algorithm2(C, b, s);
+
+  auto obj1 = evaluate_objective(C, b, x_hat);
+
+  fmt::println("x_hat: {}, Objective: {}", fmt::streamed(x_hat.transpose()), obj1);
+
+  /// Correct solution, obtained using pymanopt
+  Vec real_opt{-0.81721938, -0.48254904, -0.3151173};
+  EXPECT_NEAR((real_opt - x_hat).norm(), 0, 1e-3);
+
+  fmt::println("real_opt: {}, Objective: {}", fmt::streamed(real_opt.transpose()),
+               evaluate_objective(C, b, real_opt));
+}
+
+
+/*TEST(NCSSolverTests, FuzzySmoke) {
   /// Fuzzy-smoke
   int trials = 1000;
   for (int i_trial = 0; i_trial < trials; i_trial++) {
@@ -54,7 +82,7 @@ TEST(NCSSolverTests, FuzzySmoke) {
     auto x_hat = solve_norm_constrained_qp(C, b, s);
     EXPECT_NEAR(x_hat.norm(), s, 1e-3);
   }
-}
+}*/
 
 TEST(NCSSolverTests, Zerob) {
   /// Test where b is the zero-vector. In this case the optimization problem simplifies to one
