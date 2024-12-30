@@ -25,10 +25,22 @@ It is based on eigen-decomposition with subsequent root-finding.
 
 # Install 
 
-Install the binary using the conan package manager: 
+Install using the conan package manager: 
 
 ```sh
 conan install norm_constrained_qp_solver
+```
+
+Add this to your `CMakeLists.txt`-file:
+
+```Cmake
+find_package(norm_constrained_qp_solver REQUIRED)
+add_executable(my_executable ...)
+
+target_link_libraries(my_executable PUBLIC
+    norm_constrained_qp_solver::norm_constrained_qp_solver
+    [...]
+    )
 ```
 
 # Example usage 

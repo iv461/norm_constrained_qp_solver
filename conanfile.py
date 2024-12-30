@@ -3,15 +3,15 @@ from conan.tools.files import copy
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
 
 
-class NCSReceipt(ConanFile):
+class NCSRecipe(ConanFile):
     name = "norm_constrained_qp_solver"
-    version = "1.0"
+    version = "0.1.0"
 
     # Optional metadata
     license = "MIT"
     author = "Ivo Ivanov (ivo.ivanov@tha.de)"
     url = "github.com/iv461/norm_constrained_qp_solver"
-    description = "A globally optimal solver for non-convex norm-constrained quadratic programs"
+    description = "A fast globally optimal solver for norm-constrained non-convex quadratic programs"
     topics = ("optimization")
 
     # Binary configuration
@@ -33,7 +33,6 @@ class NCSReceipt(ConanFile):
         
     def requirements(self):
         self.requires("eigen/3.4.0", transitive_headers=True)
-        self.requires("pybind11/2.11.1", transitive_headers=True)
         self.requires("fmt/10.2.1", transitive_headers=True)
         self.test_requires("gtest/1.14.0")        
     
