@@ -40,5 +40,5 @@ conan create .
 
 ### Linux
 ```sh
-.\build\test\tests
+./build/test/tests
 ```

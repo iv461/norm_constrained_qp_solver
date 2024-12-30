@@ -23,25 +23,6 @@ It is based on eigen-decomposition with subsequent root-finding.
 - C++17
 - Eigen linear algebra library, version >= `3.4`
 
-# Install 
-
-Install using the conan package manager: 
-
-```sh
-conan install norm_constrained_qp_solver
-```
-
-Add this to your `CMakeLists.txt`-file:
-
-```Cmake
-find_package(norm_constrained_qp_solver REQUIRED)
-add_executable(my_executable ...)
-
-target_link_libraries(my_executable PUBLIC
-    norm_constrained_qp_solver::norm_constrained_qp_solver
-    [...]
-    )
-```
 
 # Example usage 
 
@@ -58,6 +39,18 @@ Eigen::Vector3<double> optimal_x = ncs::solve_norm_constrained_qp(C, b, s);
 # Build from source 
 
 To build from source and run the tests, see [Building from source](doc/build_from_source.md)
+
+Then, add this to your `CMakeLists.txt`-file:
+
+```Cmake
+find_package(norm_constrained_qp_solver REQUIRED)
+add_executable(my_executable ...)
+
+target_link_libraries(my_executable PUBLIC
+    norm_constrained_qp_solver::norm_constrained_qp_solver
+    [...]
+    )
+```
 
 # License 
 
