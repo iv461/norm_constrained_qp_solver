@@ -1,3 +1,7 @@
+// Copyright (c) 2025 Ivo Ivanov. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for details.
+//
+// Implementation of a solver for norm-contrained quadratic programs, optimized for small and dense matrices.
 #pragma once
 
 #include <fmt/core.h>
@@ -38,26 +42,25 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f, Scalar a, Scal
   return std::make_pair(c, i);
 }
 
-template <typename Scalar, int Dim>
-void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vector<Scalar, Dim> &b,
-                     Scalar s) {
-  static_assert(Dim > 1 || Dim == Eigen::Dynamic, "The matrix C must be at least 2x2");
-  /// Check the dimensions if we are using dynamic-sized matrices
-  if constexpr (Dim == Eigen::Dynamic) {
-    if (C.cols() != C.rows())
-      throw std::invalid_argument(
-          fmt::format("The matrix C must be symmetric, but instead it has {} rows and {} columns",
-                      C.rows(), C.cols()));
-    if (b.size() != C.rows())
-      throw std::invalid_argument(
-          fmt::format("The vector b must have the same dimension as the matrix C, but C is of "
-                      "dimension {} while b is of dimension {}",
-                      C.rows(), b.size()));
-    if (!(C.cols() > 1))
-      throw std::invalid_argument(fmt::format(
-          "The matrix C must be at least 2x2, but instead it has {} rows and {} columns", C.rows(),
-          C.cols()));
-  }
+template<typename Mat, typename Vec>
+void check_arguments_dimensions(const Mat &C, const Vec &b) {
+  if (C.cols() != C.rows())
+    throw std::invalid_argument(
+        fmt::format("The matrix C must be symmetric, but instead it has {} rows and {} columns",
+                    C.rows(), C.cols()));
+  if (b.size() != C.rows())
+    throw std::invalid_argument(
+        fmt::format("The vector b must have the same dimension as the matrix C, but C is of "
+                    "dimension {} while b is of dimension {}",
+                    C.rows(), b.size()));
+  if (!(C.cols() > 1))
+    throw std::invalid_argument(fmt::format(
+        "The matrix C must be at least 2x2, but instead it has {} rows and {} columns", C.rows(),
+        C.cols()));
+}
+
+template<typename Mat, typename Vec>
+void check_matrix_argument_values(const Mat &C, const Vec &b) {
   if (!C.array().isFinite().all())
     throw std::invalid_argument(fmt::format(
         "C must be finite, i.e. not contain NaN or Infinite values, but instead C is: {}",
@@ -67,10 +70,16 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vect
         "b must be finite, i.e. not contain NaN or Infinite value, but instead b is: {}",
         fmt::streamed(b)));
   if (!C.isApprox(C.transpose())) {
-    Scalar norm_diff = (C - C.transpose()).norm();
+    auto norm_diff = (C - C.transpose()).norm();
     throw std::invalid_argument(
         fmt::format("The matrix C must be symmetric, instead ||C - C^T||_2 is: {}", norm_diff));
   }
+}
+
+template<typename Scalar>
+void check_argument_s(Scalar s) {
+  if (!std::isfinite(s))
+    throw std::invalid_argument(fmt::format("s must be finite, i.e. NaN or Infinite, but it is instead {}", s));
   if (!(s > 0))
     throw std::invalid_argument(
         fmt::format("s must be a positive and non-zero, but it is instead {}", s));
@@ -80,6 +89,13 @@ void check_arguments(const Eigen::Matrix<Scalar, Dim, Dim> &C, const Eigen::Vect
         fmt::format("s is very small, an accurate result is not guaranteed, it must be greater or "
                     "equal {}, but instead it is: {}",
                     s_min, s));
+} 
+
+template <typename Mat, typename Vec, typename Scalar>
+void check_arguments(const Mat &C, const Vec &b, Scalar s) {
+  check_arguments_dimensions(C, b);
+  check_matrix_argument_values(C, b);
+  check_argument_s(s);
 }
 
 /// Find the root of the secular equation.

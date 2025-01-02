@@ -1,3 +1,6 @@
+// Copyright (c) 2025 Ivo Ivanov. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for details.
+
 #include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <gtest/gtest.h>
@@ -51,7 +54,7 @@ TEST(NCSSolverTests, SmokeSparse) {
   b << -0.68618036, -0.29540059, -0.51183855;
   Scalar s = 1.;
 
-  auto x_hat = ncs::norm_constrained_qp_solver_sparse(C, b, s);
+  auto x_hat = ncs::solve_norm_constrained_qp_sparse(C, b, s);
 
   auto obj1 = evaluate_objective(C, b, x_hat);
 
@@ -84,7 +87,7 @@ TEST(NCSSolverTests, SmokeSparse) {
   // fmt::println("sparseMatrixC:\n{}, bvec2:\n{}",
   //        fmt::streamed(sparseMatrixC), fmt::streamed(x_hat.transpose()));
 
-  auto x_hat2 = ncs::norm_constrained_qp_solver_sparse(sparseMatrixC, bvec2, s);
+  auto x_hat2 = ncs::solve_norm_constrained_qp_sparse(sparseMatrixC, bvec2, s);
 }
 
 TEST(NCSSolverTests, FuzzySmoke) {
