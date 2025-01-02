@@ -22,7 +22,7 @@ static int sgn(T val) {
 }
 
 // An matrix multiplication operator that implements the block-matrix multiplication required by algorithm, in form of the interface required by the SPECTRA library.
-// It is templated on the 
+// It is templated on the matrix and vector operator to be able to use it matrix-free.
  template <typename Scalar_, typename MatrixFunc, typename VectorFunc>
 class MatrixProd {
  public:
@@ -55,6 +55,7 @@ class MatrixProd {
 
 }  // namespace
 
+/// Overload for sparse eigen matrices.
 template <typename Scalar>
 static Eigen::Vector<Scalar, Eigen::Dynamic> norm_constrained_qp_solver_sparse(
     const Eigen::SparseMatrix<Scalar> &C,
@@ -76,9 +77,8 @@ static Eigen::Vector<Scalar, Eigen::Dynamic> norm_constrained_qp_solver_sparse(
 /// References:
 /// [1] "An active-set algorithm for norm constrained quadratic problems", Nikitas Rontsis, Paul J. Goulart & Yuji Nakatsukasa,
 /// https://doi.org/10.1007/s10107-021-01617-2
-
 template <typename Scalar, typename Vec, typename Mat>
-static Eigen::Vector<Scalar, Eigen::Dynamic> algorithm2(
+static Eigen::Vector<Scalar, Eigen::Dynamic> norm_constrained_qp_solver_sparse(
     const Mat &C, const Vec &b, Scalar s) {
   using MatD = Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic>;
   using VecD = Eigen::Vector<Scalar, Eigen::Dynamic>;
@@ -86,27 +86,13 @@ static Eigen::Vector<Scalar, Eigen::Dynamic> algorithm2(
   auto dims = C.cols();
   //check_arguments(C, b, s);
 
-  /// Solve via implicit eigenproblem, construct implicitly matrix M
-
   using MOp = MatrixProd<Scalar, Mat, Vec>;
   MOp op(C, b, s);
-  /// 1 means "compute only one eigenvalue/eigenvector", whereas 6 is some parameter for controlling the convergence of the algorithm (6 is the default)
+  /// Construct the eigensolver, 1 means "compute only one eigenvalue/eigenvector", whereas 6 is some parameter for controlling the convergence of the algorithm (6 is the default)
   Spectra::GenEigsSolver<MOp> eigs(op, 1, 6);
-
-  /*
-  MatD M{MatD::Zero(dims*2, dims*2)};
-  M.block(0, 0, dims, dims) = -C;
-  M.block(dims, dims, dims, dims) = -C;
-  M.block(dims, 0, dims, dims) = MatD::Identity(dims, dims);
-  M.block(0, dims, dims, dims) = (b * b.transpose()) / (s * s);
-  Spectra::DenseGenMatProd<Scalar> op(M);
-  Spectra::GenEigsSolver<Spectra::DenseGenMatProd<Scalar>> eigs(op, 1, 6);
-  */
- 
-    
-  // Initialize and compute
+  // Initialize it, this chooses a random starting point.
   eigs.init();
-  
+  /// Now run the Arnoldi iteration algorithm.
   int nconv = eigs.compute(Spectra::SortRule::LargestReal, 
     /*maxit=*/1000,
     /*tol=*/1e-10, 
@@ -116,12 +102,12 @@ static Eigen::Vector<Scalar, Eigen::Dynamic> algorithm2(
   fmt::println("Solver result: nconv: {}, num_iterations: {}", nconv, eigs.num_iterations());
   
   VecD x_hat = VecD::Zero(dims);
-  if (eigs.info() != Spectra::CompInfo::Successful || nconv != 1) {
-    fmt::println("Solver failed !");
-    return x_hat;
+  auto eigs_info = eigs.info();
+  if (eigs_info != Spectra::CompInfo::Successful || nconv != 1) {
+    throw std::invalid_argument(fmt::format("Solver failed to converge, eigs.info() was {}, nconv was {}", int(eigs_info), nconv));
   }
 
-  /// Get largest eigenvector
+  /// Get largest eigenvector. The associated eigenvalue is always real (see Theorem 1. in [1] and the references therein)
   VecD z_star = eigs.eigenvectors(1).col(0).real();
 
   fmt::println("z_star: {}", fmt::streamed(z_star.transpose()));
@@ -135,12 +121,14 @@ static Eigen::Vector<Scalar, Eigen::Dynamic> algorithm2(
   Scalar g_times_z2 = b.dot(z2_star);
 
   Scalar z1_star_norm = z1_star.norm();
+
+  /// Now check for the hard-case as defined in [1], page 6. Solving this hard case is currently not implemented.
   if(z1_star_norm < Scalar(1e-8)) {
-    fmt::println("Hard case occured, z1_star_norm is: {}", z1_star_norm);
-  } 
+    throw std::invalid_argument(fmt::format("The solver can't solve this instance (hard case occurred, where the norm of z1-star is close to zero (it was {}).", z1_star_norm));
+  }
 
   VecD x_opt = - Scalar(sgn(g_times_z2)) * s * (z1_star / z1_star_norm);
-  /// Minus sign, since we have minus in front of the linear term of the objective.
+  /// Minus sign, since we have minus in front of the linear term of the objective compared to [1]
   return -x_opt;
 }
 }  // namespace ncs

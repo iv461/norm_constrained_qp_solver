@@ -12,8 +12,8 @@ using Mat = Eigen::Matrix3<Scalar>;
 using Vec = Eigen::Vector3<Scalar>;
 
 template <typename Scalar, int Dim>
-Scalar evaluate_objective(const Eigen::Matrix<Scalar, Dim, Dim>  &C, 
-    const Eigen::Vector<Scalar, Dim> &b, const Vec &x) {
+Scalar evaluate_objective(const Eigen::Matrix<Scalar, Dim, Dim> &C,
+                          const Eigen::Vector<Scalar, Dim> &b, const Vec &x) {
   return Scalar(0.5) * x.transpose() * C * x - b.dot(x);
 }
 
@@ -41,8 +41,8 @@ TEST(NCSSolverTests, Smoke) {
                evaluate_objective(C, b, real_opt));
 }
 
-TEST(NCSSolverTests, Smoke2) {
-  /// Smoke test.
+TEST(NCSSolverTests, SmokeSparse) {
+  /// Smoke test for the sparse solver
   Mat C;
   C << -1.07822383, -2.78673686, -1.23438251, -2.78673686, 0.93347297, 0.54945616, -1.23438251,
       0.54945616, -0.05524914;
@@ -51,7 +51,7 @@ TEST(NCSSolverTests, Smoke2) {
   b << -0.68618036, -0.29540059, -0.51183855;
   Scalar s = 1.;
 
-  auto x_hat = ncs::algorithm2(C, b, s);
+  auto x_hat = ncs::norm_constrained_qp_solver_sparse(C, b, s);
 
   auto obj1 = evaluate_objective(C, b, x_hat);
 
@@ -63,10 +63,31 @@ TEST(NCSSolverTests, Smoke2) {
 
   fmt::println("real_opt: {}, Objective: {}", fmt::streamed(real_opt.transpose()),
                evaluate_objective(C, b, real_opt));
+
+  /// Now test with sparse matrices
+  auto n = 100;
+  Eigen::VectorXd mainDiag = Eigen::VectorXd::Random(n);
+  Eigen::VectorXd subDiag = Eigen::VectorXd::Random(n - 1);
+  Eigen::VectorXd superDiag = Eigen::VectorXd::Random(n - 1);
+
+  /// Test with a random tridiagonal matrix. Eigen has like zero support for conveniently
+  /// initializing SparseMatrices, so we will create a dense one and then convert it to a sparse
+  /// one.
+  Eigen::MatrixXd bandMatrix = Eigen::MatrixXd::Zero(n, n);
+  bandMatrix.diagonal() = mainDiag;
+  bandMatrix.diagonal(-1) = subDiag;
+  bandMatrix.diagonal(1) = superDiag;
+  Eigen::SparseMatrix<double> sparseMatrixC = bandMatrix.sparseView();
+
+  Eigen::VectorXd bvec2 = Eigen::VectorXd::Random(n);  /// A dense vector, could be sparse as well.
+
+  // fmt::println("sparseMatrixC:\n{}, bvec2:\n{}",
+  //        fmt::streamed(sparseMatrixC), fmt::streamed(x_hat.transpose()));
+
+  auto x_hat2 = ncs::norm_constrained_qp_solver_sparse(sparseMatrixC, bvec2, s);
 }
 
-
-/*TEST(NCSSolverTests, FuzzySmoke) {
+TEST(NCSSolverTests, FuzzySmoke) {
   /// Fuzzy-smoke
   int trials = 1000;
   for (int i_trial = 0; i_trial < trials; i_trial++) {
@@ -78,11 +99,11 @@ TEST(NCSSolverTests, Smoke2) {
     Vec s_vec = Vec::Random();
     Scalar s = s_vec[0] * s_vec[0] + 1e-6;
 
-    fmt::println("C\n:{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
+    // fmt::println("C\n:{}, b:\n{}, s: {}", fmt::streamed(C), fmt::streamed(b.transpose()), s);
     auto x_hat = solve_norm_constrained_qp(C, b, s);
     EXPECT_NEAR(x_hat.norm(), s, 1e-3);
   }
-}*/
+}
 
 TEST(NCSSolverTests, Zerob) {
   /// Test where b is the zero-vector. In this case the optimization problem simplifies to one
