@@ -28,7 +28,7 @@ conan profile detect
 ### Linux and Windows
 
 ```sh
-conan create .
+conan build .
 ```
 
 ## Run unit-tests
@@ -40,5 +40,5 @@ conan create .
 
 ### Linux
 ```sh
-./build/test/tests
+ ./build/Release/test/tests
 ```

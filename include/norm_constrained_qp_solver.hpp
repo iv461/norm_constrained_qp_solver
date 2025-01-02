@@ -101,7 +101,7 @@ Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D,
   for (int i = (dims - 1); i >= 0; i--)
     if (d_sq[i] != 0) i_leftmost_pole = i;
 
-  // fmt::println("i_leftmost_pole: {}", i_leftmost_pole);
+  
 
   auto leftmost_pole = D[i_leftmost_pole];
   auto abs_d_max = std::abs(d[i_leftmost_pole]);
@@ -118,20 +118,12 @@ Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D,
   } else {
     const Scalar root_interval_right_border = next_float_before_pole;
     const Scalar root_interval_left_border = next_float_before_pole - d.norm() / s;
-
-    // fmt::println("root bracket: [{}, {}]", root_interval_left_border,
-    // root_interval_right_border);
-
     /// Now use bisection, it is guaranteed to converge to a root as long as the interval is
     /// correct.
     const Scalar ULP = std::numeric_limits<Scalar>::epsilon();
     const auto [root, required_iterations] =
         bisect<Scalar>(secular_eq, root_interval_left_border, root_interval_right_border, ULP, 80);
     leftmost_root = root;
-    /*
-    fmt::print("Root-finding took {} iterations and found the Lagrange multiplier {} where the
-    function is: {}\n", required_iterations, root, secular_eq(root));
-    */
   }
   return leftmost_root;
 }
@@ -201,8 +193,7 @@ static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(
   /// Handle the case where the optimal Lagrange multiplier is the smallest eigenvalue: This is only
   /// the case if all d_i are zero. (Which can only happen if b is the zero vector)
   Vec d = Q.transpose() * b;
-  fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D.transpose()),
-  fmt::streamed(d.transpose()));
+
   if ((d.array() == 0).all()) {
     fmt::println("All d_i are zero case");
     return Q.col(0);

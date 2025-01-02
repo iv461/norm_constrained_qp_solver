@@ -62,7 +62,7 @@ static Eigen::Vector<Scalar, Eigen::Dynamic> norm_constrained_qp_solver_sparse(
     const Eigen::SparseMatrix<Scalar> &b, 
     Scalar s) {
       //check_arguments(C, b, s);
-      return algorithm2<Scalar>(C, b, s);
+      return norm_constrained_qp_solver_sparse<Scalar>(C, b, s);
 }
 
 /// Solves the following non-convex optimization problem to global optimality:
