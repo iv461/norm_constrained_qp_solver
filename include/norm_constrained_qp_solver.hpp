@@ -1,7 +1,8 @@
 // Copyright (c) 2025 Ivo Ivanov. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 //
-// Implementation of a solver for norm-contrained quadratic programs, optimized for small and dense matrices.
+// Implementation of a solver for norm-contrained quadratic programs, optimized for small and dense
+// matrices.
 #pragma once
 
 #include <fmt/core.h>
@@ -42,7 +43,7 @@ std::pair<Scalar, size_t> bisect(std::function<Scalar(Scalar)> f, Scalar a, Scal
   return std::make_pair(c, i);
 }
 
-template<typename Mat, typename Vec>
+template <typename Mat, typename Vec>
 void check_arguments_dimensions(const Mat &C, const Vec &b) {
   if (C.cols() != C.rows())
     throw std::invalid_argument(
@@ -54,12 +55,12 @@ void check_arguments_dimensions(const Mat &C, const Vec &b) {
                     "dimension {} while b is of dimension {}",
                     C.rows(), b.size()));
   if (!(C.cols() > 1))
-    throw std::invalid_argument(fmt::format(
-        "The matrix C must be at least 2x2, but instead it has {} rows and {} columns", C.rows(),
-        C.cols()));
+    throw std::invalid_argument(
+        fmt::format("The matrix C must be at least 2x2, but instead it has {} rows and {} columns",
+                    C.rows(), C.cols()));
 }
 
-template<typename Mat, typename Vec>
+template <typename Mat, typename Vec>
 void check_matrix_argument_values(const Mat &C, const Vec &b) {
   if (!C.array().isFinite().all())
     throw std::invalid_argument(fmt::format(
@@ -76,10 +77,11 @@ void check_matrix_argument_values(const Mat &C, const Vec &b) {
   }
 }
 
-template<typename Scalar>
+template <typename Scalar>
 void check_argument_s(Scalar s) {
   if (!std::isfinite(s))
-    throw std::invalid_argument(fmt::format("s must be finite, i.e. NaN or Infinite, but it is instead {}", s));
+    throw std::invalid_argument(
+        fmt::format("s must be finite, i.e. NaN or Infinite, but it is instead {}", s));
   if (!(s > 0))
     throw std::invalid_argument(
         fmt::format("s must be a positive and non-zero, but it is instead {}", s));
@@ -89,7 +91,7 @@ void check_argument_s(Scalar s) {
         fmt::format("s is very small, an accurate result is not guaranteed, it must be greater or "
                     "equal {}, but instead it is: {}",
                     s_min, s));
-} 
+}
 
 template <typename Mat, typename Vec, typename Scalar>
 void check_arguments(const Mat &C, const Vec &b, Scalar s) {
@@ -116,8 +118,6 @@ Scalar solve_secular_equation(const Eigen::Vector<Scalar, Dim> &D,
   size_t i_leftmost_pole = 0;
   for (int i = (dims - 1); i >= 0; i--)
     if (d_sq[i] != 0) i_leftmost_pole = i;
-
-  
 
   auto leftmost_pole = D[i_leftmost_pole];
   auto abs_d_max = std::abs(d[i_leftmost_pole]);

@@ -38,9 +38,8 @@ Eigen::Vector3<double> optimal_x = ncs::solve_norm_constrained_qp(C, b, s);
 
 ## Large-scale sparse problems (experimental)
 
-For handling large-scale and sparse problems, one additional solver is implemented. Currently,it is experimental since I personally have no use for it currently, and it was tested only on random matrices.
-With that said, here a usage example:
-
+An additional solver is implemented to handle large and sparse problems. It is currently experimental, since I personally have no use for it, and it has only been tested on random matrices.
+With that being said, here is an example how to use it:
 ```c++
 #include <norm_constrained_qp_solver_sparse.hpp>
 
