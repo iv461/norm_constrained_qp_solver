@@ -21,8 +21,8 @@ It is based on eigen-decomposition with subsequent root-finding.
 # Dependencies 
 
 - C++17
-- Eigen linear algebra library, version >= `3.4`
-
+- Eigen, linear algebra library, version >= `3.4`
+- SPECTRA, for the sparse solver
 
 # Example usage 
 
@@ -34,6 +34,22 @@ Eigen::Vector3<double> b = Eigen::Vector3<double>::Random();
 double s = 1.;
 
 Eigen::Vector3<double> optimal_x = ncs::solve_norm_constrained_qp(C, b, s);
+```
+
+## Large-scale sparse problems (experimental)
+
+For handling large-scale and sparse problems, one additional solver is implemented. Currently,it is experimental since I personally have no use for it currently, and it was tested only on random matrices.
+With that said, here a usage example:
+
+```c++
+#include <norm_constrained_qp_solver_sparse.hpp>
+
+Eigen::SparseMatrix<double> C;
+Eigen::SparseMatrix<double> b;
+
+double s = 1.;
+
+Eigen::VectorxX<double> optimal_x = ncs::solve_norm_constrained_qp_sparse(C, b, s);
 ```
 
 # Build from source 

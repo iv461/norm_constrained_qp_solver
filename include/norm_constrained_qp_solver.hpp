@@ -197,13 +197,14 @@ static Eigen::Vector<Scalar, Dim> solve_norm_constrained_qp(
   Eigen::SelfAdjointEigenSolver<Mat> es(C);
   Mat Q = es.eigenvectors();
   Vec D = es.eigenvalues();
-  // fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D.transpose()),
-  // fmt::streamed(d.transpose()));
 
   /// Handle the case where the optimal Lagrange multiplier is the smallest eigenvalue: This is only
   /// the case if all d_i are zero. (Which can only happen if b is the zero vector)
   Vec d = Q.transpose() * b;
+  fmt::println("Q: {}\nD: {}\nd: {}", fmt::streamed(Q), fmt::streamed(D.transpose()),
+  fmt::streamed(d.transpose()));
   if ((d.array() == 0).all()) {
+    fmt::println("All d_i are zero case");
     return Q.col(0);
   }
 
