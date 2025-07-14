@@ -13,10 +13,10 @@ This is a tiny and fast solver for solving the non-convex optimization problem w
 \end{equation}
 ```
 
-where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite) and $s$ is a parameter. This problem is also known as the Trust-Region Subproblem (TRS).
+where $\mathbf{A}$ is a symmetric matrix (does not need to be positive definite) and $s$ is a parameter. This problem is also known as the Trust-Region Subproblem (TRS). 
 
-The solver is optimized for small, fixed-sized matrices.
-It is based on eigen-decomposition with subsequent root-finding.
+We implement two methods: One optimized for small, fixed-sized matrices based eigen-decomposition with subsequent root-finding [1].
+The second method is a matrix-free method for large and possibly sparse problems [2].
 
 # Dependencies 
 
@@ -71,8 +71,15 @@ target_link_libraries(my_executable PUBLIC
 
 This code is licensed under the MIT license.
 
+# References 
+
+- [1] "A constrained eigenvalue problem", Walter Gander, Gene H. Golub, Urs von Matt, https://doi.org/10.1016/0024-3795(89)90494-1
+- [2] "An active-set algorithm for norm constrained quadratic problems", Nikitas Rontsis, Paul J. Goulart & Yuji Nakatsukasa, https://doi.org/10.1007/s10107-021-01617-2
+  
 # Related projects 
 
 - [TRS.jl](https://github.com/oxfordcontrol/TRS.jl) Julia package, optimized for large and sparse matrices, with  additional linear constraints
 - [QPnorm.jl](https://github.com/oxfordcontrol/QPnorm.jl) Julia package, supports additionally a minimum norm constraint 
 - [Manopt](https://www.manopt.org/) Matlab/Python/Julia package for manifold optimization, supports optimization over the sphere (=norm-constraint), but without global optimality guarantee
+
+
